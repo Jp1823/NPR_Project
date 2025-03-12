@@ -1,0 +1,9 @@
+<nodes>
+	<node id="J0" x="384962.71" y="5812878.57" z="0.00" type="priority" />
+	<node id="J1" x="384462.71" y="5812878.57" z="0.00" type="priority" />
+	<node id="J2" x="385462.71" y="5812878.57" z="0.00" type="priority" />
+	<node id="J3" x="384962.71" y="5812578.57" z="0.00" type="priority" />
+	<node id="J4" x="384962.71" y="5813178.57" z="0.00" type="priority" />
+	<node id="J5" x="384462.71" y="5813378.57" z="0.00" type="priority" />
+	<node id="J6" x="384462.71" y="5812378.57" z="0.00" type="priority" />
+</nodes>

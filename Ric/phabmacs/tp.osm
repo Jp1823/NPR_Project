@@ -1,0 +1,90 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<osm version='0.6' generator='MOSAIC OSM-Export'>
+	<node id="J0" lat="52.453960" lon="13.307066" version="1"/>
+	<node id="J1" lat="52.453855" lon="13.299711" version="1"/>
+	<node id="J2" lat="52.454065" lon="13.314420" version="1"/>
+	<node id="J3" lat="52.451264" lon="13.307169" version="1"/>
+	<node id="J4" lat="52.456656" lon="13.306962" version="1"/>
+	<node id="J5" lat="52.458348" lon="13.299538" version="1"/>
+	<node id="J6" lat="52.449362" lon="13.299884" version="1"/>
+	<way id="-E8" version="1">
+		<nd ref="J5" version="1"/>
+		<nd ref="J1" version="1"/>
+	</way>
+	<way id="-E9" version="1">
+		<nd ref="J6" version="1"/>
+		<nd ref="J1" version="1"/>
+	</way>
+	<way id="E0" version="1">
+		<nd ref="J0" version="1"/>
+		<nd ref="J1" version="1"/>
+	</way>
+	<way id="E1" version="1">
+		<nd ref="J0" version="1"/>
+		<nd ref="J2" version="1"/>
+	</way>
+	<way id="E2" version="1">
+		<nd ref="J0" version="1"/>
+		<nd ref="J3" version="1"/>
+	</way>
+	<way id="E3" version="1">
+		<nd ref="J0" version="1"/>
+		<nd ref="J4" version="1"/>
+	</way>
+	<way id="E4" version="1">
+		<nd ref="J2" version="1"/>
+		<nd ref="J4" version="1"/>
+	</way>
+	<way id="E5" version="1">
+		<nd ref="J2" version="1"/>
+		<nd ref="J3" version="1"/>
+	</way>
+	<way id="E6" version="1">
+		<nd ref="J4" version="1"/>
+		<nd ref="J1" version="1"/>
+	</way>
+	<way id="E7" version="1">
+		<nd ref="J1" version="1"/>
+		<nd ref="J3" version="1"/>
+	</way>
+	<way id="E8" version="1">
+		<nd ref="J1" version="1"/>
+		<nd ref="J5" version="1"/>
+	</way>
+	<way id="E9" version="1">
+		<nd ref="J1" version="1"/>
+		<nd ref="J6" version="1"/>
+	</way>
+	<way id="-E0" version="1">
+		<nd ref="J1" version="1"/>
+		<nd ref="J0" version="1"/>
+	</way>
+	<way id="-E1" version="1">
+		<nd ref="J2" version="1"/>
+		<nd ref="J0" version="1"/>
+	</way>
+	<way id="-E2" version="1">
+		<nd ref="J3" version="1"/>
+		<nd ref="J0" version="1"/>
+	</way>
+	<way id="-E3" version="1">
+		<nd ref="J4" version="1"/>
+		<nd ref="J0" version="1"/>
+	</way>
+	<way id="-E4" version="1">
+		<nd ref="J4" version="1"/>
+		<nd ref="J2" version="1"/>
+	</way>
+	<way id="-E5" version="1">
+		<nd ref="J3" version="1"/>
+		<nd ref="J2" version="1"/>
+	</way>
+	<way id="-E6" version="1">
+		<nd ref="J1" version="1"/>
+		<nd ref="J4" version="1"/>
+	</way>
+	<way id="-E7" version="1">
+		<nd ref="J3" version="1"/>
+		<nd ref="J1" version="1"/>
+	</way>
+</osm>

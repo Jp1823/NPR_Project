@@ -21,7 +21,10 @@
         "accel": 0.0,
         "decel": 0.0,
         "tau": 0.0
-      }
+      },
+      "applications": [
+        "pt.uminho.npr.tutorial.VehApp"
+      ]
     }
   ],
   "vehicles": [
@@ -42,7 +45,10 @@
       ],
       "departConnectionIndex": 0,
       "pos": 0,
-      "route": "r_0"
+      "route": "r_0",
+      "applications": [
+        "pt.uminho.npr.tutorial.VehApp"
+      ]
     },
     {
       "startingTime": "5 s",
@@ -61,7 +67,10 @@
       ],
       "departConnectionIndex": 0,
       "pos": 0,
-      "route": "r_2"
+      "route": "r_2",
+      "applications": [
+        "pt.uminho.npr.tutorial.VehApp"
+      ]
     },
     {
       "startingTime": "5 s",
@@ -80,7 +89,10 @@
       ],
       "departConnectionIndex": 0,
       "pos": 0,
-      "route": "r_1"
+      "route": "r_1",
+      "applications": [
+        "pt.uminho.npr.tutorial.VehApp"
+      ]
     },
     {
       "startingTime": "5 s",
@@ -99,7 +111,68 @@
       ],
       "departConnectionIndex": 0,
       "pos": 0,
-      "route": "r_3"
+      "route": "r_3",
+      "applications": [
+        "pt.uminho.npr.tutorial.VehApp"
+      ]
+    }
+  ],
+  "rsus": [
+    {
+      "position": {
+        "latitude": 52.455121,
+        "longitude": 13.300778
+      },
+      "name": "RSU1",
+      "applications": [ "pt.uminho.npr.tutorial.MyRsuApp" ]
+    },
+    {
+      "position": {
+        "latitude": 52.452891,
+        "longitude": 13.300620
+      },
+      "name": "RSU2",
+      "applications": [ "pt.uminho.npr.tutorial.MyRsuApp" ]
+    },
+    {
+      "position": {
+        "latitude": 52.454540,
+        "longitude": 13.306261
+      },
+      "name": "RSU3",
+      "applications": [ "pt.uminho.npr.tutorial.MyRsuApp" ]
+    },
+    {
+      "position": {
+        "latitude": 52.456787,
+        "longitude": 13.308457
+      },
+      "name": "RSU4",
+      "applications": [ "pt.uminho.npr.tutorial.MyRsuApp" ]
+    },
+    {
+      "position": {
+        "latitude": 52.454773,
+        "longitude": 13.314728
+      },
+      "name": "RSU5",
+      "applications": [ "pt.uminho.npr.tutorial.MyRsuApp" ]
+    },
+    {
+      "position": {
+        "latitude": 52.451279,
+        "longitude": 13.308851
+      },
+      "name": "RSU6",
+      "applications": [ "pt.uminho.npr.tutorial.MyRsuApp" ]
+    },
+    {
+      "position": { 
+        "latitude": 52.458224, 
+        "longitude": 13.300149 
+      },
+      "name": "S1",
+      "applications": [ "pt.uminho.npr.tutorial.SensorApp" ]
     }
   ]
 }

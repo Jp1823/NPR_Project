@@ -1,16 +1,16 @@
 {
     "simulation": {
-        "id": "tutorial",
-        "duration": "1000s",
+        "id": "ScenarioTP",
+        "duration": "200s",
         "randomSeed": 268965854,
         "projection": {
             "centerCoordinates": {
-                "latitude": 36.985003,
-                "longitude": -23.291016
+                "latitude": 52.45396018554937,
+                "longitude": 13.307065729668464
             },
             "cartesianOffset": {
-                "x": -296099.236,
-                "y": -4095661.943
+                "x": -384462.71,
+                "y": -5812378.57
             }
         },
         "network": {
@@ -25,8 +25,8 @@
     },
     "federates": {
         "application": true,
-        "sns": true,
         "output": true,
+        "sns": true,
         "sumo": true
     }
 }

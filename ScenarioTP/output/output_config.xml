@@ -6,6 +6,26 @@
         <directory>.</directory>
         <separator>;</separator>
         <subscriptions>
+            <subscription id="V2xMessageTransmission" enabled="true">
+                <entries>
+                    <entry>"V2X_MSG_TX"</entry>
+                    <entry>Time</entry>
+                    <entry>MessageId</entry>
+                    <entry>SourceName</entry>
+                    <entry>SourcePosition.Latitude</entry>
+                    <entry>SourcePosition.Longitude</entry>
+                    <entry>Message.Payload.ActualLength</entry>
+                </entries>
+            </subscription>
+            <subscription id="V2xMessageReception" enabled="true">
+                <entries>
+                    <entry>"V2X_MSG_RCV"</entry>
+                    <entry>Time</entry>
+                    <entry>MessageId</entry>
+                    <entry>ReceiverName</entry>
+                    <entry>ReceiverInformation.ReceiveTime</entry>
+                </entries>
+            </subscription>
             <subscription id="VehicleUpdates">
                 <entries>
                     <entry>"VEHICLE_UPDATES"</entry>
@@ -24,6 +44,14 @@
                     <entry>Mapping.Name</entry>
                     <entry>Mapping.Applications</entry>
                     <entry>Mapping.VehicleType.Name</entry>
+                </entries>
+            </subscription>
+            <subscription id="RsuRegistration" enabled="true">
+                <entries>
+                    <entry>"RSU_REGISTRATION"</entry>
+                    <entry>Time</entry>
+                    <entry>Mapping.Name</entry>
+                    <entry>Mapping.Applications</entry>
                 </entries>
             </subscription>
         </subscriptions>

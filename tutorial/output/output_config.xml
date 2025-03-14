@@ -35,6 +35,14 @@
                     <entry>Mapping.VehicleType.Name</entry>
                 </entries>
             </subscription>
+            <subscription id="RsuRegistration" enabled="true">
+                <entries>
+                    <entry>"RSU_REGISTRATION"</entry>
+                    <entry>Time</entry>
+                    <entry>Mapping.Name</entry>
+                    <entry>Mapping.Applications</entry>
+                </entries>
+            </subscription>
         </subscriptions>
     </output>
 

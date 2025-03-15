@@ -1,7 +1,7 @@
 {
     "simulation": {
         "id": "ScenarioTP",
-        "duration": "200s",
+        "duration": "100s",
         "randomSeed": 268965854,
         "projection": {
             "centerCoordinates": {

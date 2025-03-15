@@ -10,28 +10,32 @@ import org.eclipse.mosaic.lib.objects.v2x.MessageRouting;
 import org.eclipse.mosaic.lib.objects.v2x.V2xMessage;
 import org.eclipse.mosaic.lib.util.SerializationUtils;
 
-public class MyRsuInfoMsg extends V2xMessage {
+public class RsuFogMsg extends V2xMessage {
     private final EncodedPayload payload;
     private final long timeStamp;
     private final String rsuName;
     private final GeoPoint rsuPosition;
-    private final String additionalInfo;
+    private final String destNode;
 
-    public MyRsuInfoMsg(MessageRouting routing, long time, String name, GeoPoint pos) {
+    public RsuFogMsg(MessageRouting routing,
+                     long time,
+                     String rsuName,
+                     GeoPoint rsuPos,
+                     String dest) {
         super(routing);
         this.timeStamp = time;
-        this.rsuName = name;
-        this.rsuPosition = pos;
-        this.additionalInfo = "RSU ALERT: TRAFFIC MONITORING AND METEO CONDITIONS ACTIVE.";
+        this.rsuName = rsuName;
+        this.rsuPosition = rsuPos;
+        this.destNode = dest;
         try (ByteArrayOutputStream baos = new ByteArrayOutputStream();
              DataOutputStream dos = new DataOutputStream(baos)) {
             dos.writeLong(timeStamp);
             dos.writeUTF(rsuName);
-            SerializationUtils.encodeGeoPoint(dos, rsuPosition);
-            dos.writeUTF(additionalInfo);
+            SerializationUtils.encodeGeoPoint(dos, rsuPos);
+            dos.writeUTF(destNode);
             payload = new EncodedPayload(baos.toByteArray(), baos.size());
         } catch (IOException e) {
-            throw new RuntimeException("ERROR SERIALIZING MYRSUINFOMSG", e);
+            throw new RuntimeException("ERROR SERIALIZING RSUFOGMSG", e);
         }
     }
 
@@ -53,13 +57,13 @@ public class MyRsuInfoMsg extends V2xMessage {
         return rsuPosition;
     }
 
-    public String getAdditionalInfo() {
-        return additionalInfo;
+    public String getDestNode() {
+        return destNode;
     }
 
     @Override
     public String toString() {
-        return "MYRSUINFOMSG{TIMESTAMP=" + timeStamp + ", RSUNAME='" + rsuName + "', RSUPOS=" + rsuPosition +
-               ", ADDITIONALINFO='" + additionalInfo + "'}";
+        return "RSUFOGMSG{TIMESTAMP=" + timeStamp + ", RSUNAME='" + rsuName + "', POS=" + rsuPosition
+               + ", DEST='" + destNode + "'}";
     }
 }

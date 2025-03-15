@@ -18,9 +18,13 @@ public class VehInfoMsg extends V2xMessage {
     private final double senderHeading;
     private final double senderSpeed;
     private final int senderLaneId;
+    private final String plateNumber;
+    private final String vehicleBrand;
+    private final String driverName;
 
     public VehInfoMsg(MessageRouting routing, long time, String name, GeoPoint pos,
-                      double heading, double speed, int laneId) {
+                      double heading, double speed, int laneId,
+                      String plate, String brand, String driver) {
         super(routing);
         this.timeStamp = time;
         this.senderName = name;
@@ -28,6 +32,9 @@ public class VehInfoMsg extends V2xMessage {
         this.senderHeading = heading;
         this.senderSpeed = speed;
         this.senderLaneId = laneId;
+        this.plateNumber = plate;
+        this.vehicleBrand = brand;
+        this.driverName = driver;
         try (ByteArrayOutputStream baos = new ByteArrayOutputStream();
              DataOutputStream dos = new DataOutputStream(baos)) {
             dos.writeLong(timeStamp);
@@ -36,6 +43,9 @@ public class VehInfoMsg extends V2xMessage {
             dos.writeDouble(senderHeading);
             dos.writeDouble(senderSpeed);
             dos.writeInt(senderLaneId);
+            dos.writeUTF(plateNumber);
+            dos.writeUTF(vehicleBrand);
+            dos.writeUTF(driverName);
             payload = new EncodedPayload(baos.toByteArray(), baos.size());
         } catch (IOException e) {
             throw new RuntimeException("ERROR SERIALIZING VEHINFOMSG", e);
@@ -72,9 +82,22 @@ public class VehInfoMsg extends V2xMessage {
         return senderLaneId;
     }
 
+    public String getPlateNumber() {
+        return plateNumber;
+    }
+
+    public String getVehicleBrand() {
+        return vehicleBrand;
+    }
+
+    public String getDriverName() {
+        return driverName;
+    }
+
     @Override
     public String toString() {
-        return "VEHINFOMSG{TIMESTAMP=" + timeStamp + ", SENDERNAME='" + senderName + "', SENDERPOS=" + senderPos +
-                ", HEADING=" + senderHeading + ", SPEED=" + senderSpeed + ", LANEID=" + senderLaneId + "}";
+        return "VEHINFOMSG{TIMESTAMP=" + timeStamp + ", SENDERNAME='" + senderName + "', POS=" + senderPos +
+               ", HEADING=" + senderHeading + ", SPEED=" + senderSpeed + ", LANEID=" + senderLaneId +
+               ", PLATE='" + plateNumber + "', BRAND='" + vehicleBrand + "', DRIVER='" + driverName + "'}";
     }
 }

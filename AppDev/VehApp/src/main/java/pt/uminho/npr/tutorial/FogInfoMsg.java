@@ -10,28 +10,32 @@ import org.eclipse.mosaic.lib.objects.v2x.MessageRouting;
 import org.eclipse.mosaic.lib.objects.v2x.V2xMessage;
 import org.eclipse.mosaic.lib.util.SerializationUtils;
 
-public class MyRsuInfoMsg extends V2xMessage {
+public class FogInfoMsg extends V2xMessage {
     private final EncodedPayload payload;
     private final long timeStamp;
-    private final String rsuName;
-    private final GeoPoint rsuPosition;
-    private final String additionalInfo;
+    private final String fogName;
+    private final GeoPoint fogPosition;
+    private final String analysisResult;
 
-    public MyRsuInfoMsg(MessageRouting routing, long time, String name, GeoPoint pos) {
+    public FogInfoMsg(MessageRouting routing,
+                      long time,
+                      String name,
+                      GeoPoint position,
+                      String analysisText) {
         super(routing);
         this.timeStamp = time;
-        this.rsuName = name;
-        this.rsuPosition = pos;
-        this.additionalInfo = "RSU ALERT: TRAFFIC MONITORING AND METEO CONDITIONS ACTIVE.";
+        this.fogName = name;
+        this.fogPosition = position;
+        this.analysisResult = analysisText;
         try (ByteArrayOutputStream baos = new ByteArrayOutputStream();
              DataOutputStream dos = new DataOutputStream(baos)) {
             dos.writeLong(timeStamp);
-            dos.writeUTF(rsuName);
-            SerializationUtils.encodeGeoPoint(dos, rsuPosition);
-            dos.writeUTF(additionalInfo);
+            dos.writeUTF(fogName);
+            SerializationUtils.encodeGeoPoint(dos, fogPosition);
+            dos.writeUTF(analysisResult);
             payload = new EncodedPayload(baos.toByteArray(), baos.size());
         } catch (IOException e) {
-            throw new RuntimeException("ERROR SERIALIZING MYRSUINFOMSG", e);
+            throw new RuntimeException("ERROR SERIALIZING FOGINFOMSG", e);
         }
     }
 
@@ -45,21 +49,21 @@ public class MyRsuInfoMsg extends V2xMessage {
         return timeStamp;
     }
 
-    public String getRsuName() {
-        return rsuName;
+    public String getFogName() {
+        return fogName;
     }
 
-    public GeoPoint getRsuPosition() {
-        return rsuPosition;
+    public GeoPoint getFogPosition() {
+        return fogPosition;
     }
 
-    public String getAdditionalInfo() {
-        return additionalInfo;
+    public String getAnalysisResult() {
+        return analysisResult;
     }
 
     @Override
     public String toString() {
-        return "MYRSUINFOMSG{TIMESTAMP=" + timeStamp + ", RSUNAME='" + rsuName + "', RSUPOS=" + rsuPosition +
-               ", ADDITIONALINFO='" + additionalInfo + "'}";
+        return "FOGINFOMSG{TIMESTAMP=" + timeStamp + ", FOGNAME='" + fogName + "', FOGPOS=" + fogPosition +
+               ", ANALYSIS='" + analysisResult + "'}";
     }
 }

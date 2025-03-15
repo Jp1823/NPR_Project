@@ -1,14 +1,15 @@
 package pt.uminho.npr.tutorial;
 
 import org.eclipse.mosaic.fed.application.app.AbstractApplication;
-import org.eclipse.mosaic.fed.application.ambassador.simulation.communication.CamBuilder;
-import org.eclipse.mosaic.fed.application.ambassador.simulation.communication.ReceivedAcknowledgement;
-import org.eclipse.mosaic.fed.application.ambassador.simulation.communication.ReceivedV2xMessage;
 import org.eclipse.mosaic.fed.application.app.api.CommunicationApplication;
 import org.eclipse.mosaic.fed.application.app.api.os.RoadSideUnitOperatingSystem;
 import org.eclipse.mosaic.fed.application.ambassador.simulation.communication.AdHocModuleConfiguration;
+import org.eclipse.mosaic.fed.application.ambassador.simulation.communication.CamBuilder;
+import org.eclipse.mosaic.fed.application.ambassador.simulation.communication.ReceivedAcknowledgement;
+import org.eclipse.mosaic.fed.application.ambassador.simulation.communication.ReceivedV2xMessage;
 import org.eclipse.mosaic.interactions.communication.V2xMessageTransmission;
 import org.eclipse.mosaic.lib.enums.AdHocChannel;
+import org.eclipse.mosaic.lib.objects.v2x.MessageRouting;
 import org.eclipse.mosaic.lib.objects.v2x.V2xMessage;
 import org.eclipse.mosaic.lib.util.scheduling.Event;
 import org.eclipse.mosaic.rti.TIME;
@@ -22,7 +23,7 @@ public class MyRsuApp extends AbstractApplication<RoadSideUnitOperatingSystem>
     private final long MSG_DELAY = 500 * TIME.MILLI_SECOND;
     private final int TX_POWER = 70;
     private final double TX_RANGE = 2000.0;
-    private static final long VEHICLE_TIMEOUT = 30000; // 30 seconds
+    private static final long VEHICLE_TIMEOUT = 30000;
 
     private static class VehicleRecord {
         long lastHeardTime;
@@ -41,26 +42,32 @@ public class MyRsuApp extends AbstractApplication<RoadSideUnitOperatingSystem>
                 .power(TX_POWER)
                 .distance(TX_RANGE)
                 .create());
-        getLog().infoSimTime(this, "MYRSUAPP ON STARTUP: RSU ACTIVE AT POSITION " + getOs().getPosition());
+        getLog().infoSimTime(this, "MYRSUAPP ON STARTUP: RSU ACTIVE AT " + getOs().getPosition());
         getOs().getEventManager().addEvent(getOs().getSimulationTime() + MSG_DELAY, this);
     }
 
     @Override
     public void onShutdown() {
-        getLog().infoSimTime(this, "MYRSUAPP ON SHUTDOWN: RSU TERMINATED");
+        getLog().infoSimTime(this, "MYRSUAPP ON SHUTDOWN");
         getOs().getAdHocModule().disable();
     }
 
     @Override
     public void processEvent(Event event) throws Exception {
         sendRsuInfoMsg();
+        sendFogMsg();
         cleanInactiveVehicles();
         StringBuilder sb = new StringBuilder("VEHICLES CONNECTED: [");
         for (String vehId : connectedVehicles.keySet()) {
-            sb.append(vehId).append(" ");
+            VehicleRecord r = connectedVehicles.get(vehId);
+            sb.append(vehId)
+              .append("(h=").append(r.heading)
+              .append(",s=").append(r.speed)
+              .append(",l=").append(r.lane)
+              .append(") ");
         }
         sb.append("]");
-        getLog().infoSimTime(this, "MYRSUAPP PROCESS EVENT: " + sb.toString());
+        getLog().infoSimTime(this, "MYRSUAPP: " + sb.toString());
         getOs().getEventManager().addEvent(getOs().getSimulationTime() + MSG_DELAY, this);
     }
 
@@ -75,8 +82,24 @@ public class MyRsuApp extends AbstractApplication<RoadSideUnitOperatingSystem>
                 getOs().getPosition()
         );
         getOs().getAdHocModule().sendV2xMessage(msg);
-        getLog().infoSimTime(this, "MYRSUAPP SENT MYRSUINFOMSG: " + msg.toString() + " AT SIM TIME " + time);
+        getLog().infoSimTime(this, "MYRSUAPP SENT MYRSUINFOMSG: " + msg + " AT " + time);
     }
+
+    private void sendFogMsg() {
+        long time = getOs().getSimulationTime();
+        MessageRouting routing = getOs().getAdHocModule().createMessageRouting()
+                .viaChannel(AdHocChannel.CCH)
+                .topoBroadCast();
+        RsuFogMsg msg = new RsuFogMsg(
+                routing,
+                time,
+                getOs().getId(),
+                getOs().getPosition(),
+                "FogNode"
+        );
+        getOs().getAdHocModule().sendV2xMessage(msg);
+        getLog().infoSimTime(this, "MYRSUAPP BROADCAST RsuFogMsg with dest=FogNode: " + msg);
+    }    
 
     private void cleanInactiveVehicles() {
         long now = getOs().getSimulationTime();
@@ -98,9 +121,9 @@ public class MyRsuApp extends AbstractApplication<RoadSideUnitOperatingSystem>
             handleVehInfoMsg(vehMsg);
         } else if (msg instanceof MyRsuInfoMsg) {
             MyRsuInfoMsg rsuMsg = (MyRsuInfoMsg) msg;
-            getLog().infoSimTime(this, "MYRSUAPP RECEIVED MYRSUINFOMSG: " + rsuMsg.toString());
+            getLog().infoSimTime(this, "MYRSUAPP RECEIVED MYRSUINFOMSG: " + rsuMsg);
         } else {
-            getLog().infoSimTime(this, "MYRSUAPP RECEIVED UNKNOWN MESSAGE: " + msg.toString());
+            getLog().infoSimTime(this, "MYRSUAPP RECEIVED UNKNOWN MSG: " + msg);
         }
     }
 
@@ -112,12 +135,6 @@ public class MyRsuApp extends AbstractApplication<RoadSideUnitOperatingSystem>
             record = new VehicleRecord();
             connectedVehicles.put(vehId, record);
             getLog().infoSimTime(this, "MYRSUAPP ADDED NEW VEHICLE: " + vehId);
-            StringBuilder sb = new StringBuilder("MYRSUAPP TOTAL VEHICLE LIST: [");
-            for (String id : connectedVehicles.keySet()) {
-                sb.append(id).append(" ");
-            }
-            sb.append("]");
-            getLog().infoSimTime(this, sb.toString());
         }
         record.lastHeardTime = vehMsg.getTimeStamp();
         record.heading = vehMsg.getSenderHeading();
@@ -132,7 +149,7 @@ public class MyRsuApp extends AbstractApplication<RoadSideUnitOperatingSystem>
 
     @Override
     public void onAcknowledgementReceived(ReceivedAcknowledgement ack) {
-        getLog().infoSimTime(this, "MYRSUAPP ON ACKNOWLEDGEMENT RECEIVED: " + ack.toString());
+        getLog().infoSimTime(this, "MYRSUAPP ON ACKNOWLEDGEMENT");
     }
 
     @Override

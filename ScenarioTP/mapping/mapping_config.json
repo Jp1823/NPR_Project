@@ -4,7 +4,7 @@
       "name": "Car",
       "length": "4.0 m",
       "minGap": "2.5 m",
-      "maxSpeed": "70.0 m/s",
+      "maxSpeed": "2.0 m/s",
       "vehicleClass": "Car",
       "accel": 2.6,
       "decel": 4.5,
@@ -31,9 +31,9 @@
     {
       "startingTime": "5 s",
       "maxTime": "700 s",
-      "targetFlow": 900.0,
+      "targetFlow": 1,
       "spawningMode": "CONSTANT",
-      "maxNumberVehicles": 250,
+      "maxNumberVehicles": 5,
       "laneSelectionMode": "BEST",
       "departSpeed": "0.0 m/s",
       "departSpeedMode": "MAXIMUM",
@@ -53,9 +53,9 @@
     {
       "startingTime": "5 s",
       "maxTime": "700 s",
-      "targetFlow": 900.0,
+      "targetFlow": 1,
       "spawningMode": "CONSTANT",
-      "maxNumberVehicles": 250,
+      "maxNumberVehicles": 5,
       "laneSelectionMode": "BEST",
       "departSpeed": "0.0 m/s",
       "departSpeedMode": "MAXIMUM",
@@ -75,9 +75,9 @@
     {
       "startingTime": "5 s",
       "maxTime": "700 s",
-      "targetFlow": 900.0,
+      "targetFlow": 1,
       "spawningMode": "CONSTANT",
-      "maxNumberVehicles": 250,
+      "maxNumberVehicles": 5,
       "laneSelectionMode": "BEST",
       "departSpeed": "0.0 m/s",
       "departSpeedMode": "MAXIMUM",
@@ -97,9 +97,9 @@
     {
       "startingTime": "5 s",
       "maxTime": "700 s",
-      "targetFlow": 900.0,
+      "targetFlow": 1,
       "spawningMode": "CONSTANT",
-      "maxNumberVehicles": 250,
+      "maxNumberVehicles": 5,
       "laneSelectionMode": "BEST",
       "departSpeed": "0.0 m/s",
       "departSpeedMode": "MAXIMUM",
@@ -124,7 +124,7 @@
         "longitude": 13.300778
       },
       "name": "RSU1",
-      "applications": [ "pt.uminho.npr.tutorial.MyRsuApp" ]
+      "applications": [ "pt.uminho.npr.tutorial.RsuApp" ]
     },
     {
       "position": {
@@ -132,7 +132,7 @@
         "longitude": 13.300620
       },
       "name": "RSU2",
-      "applications": [ "pt.uminho.npr.tutorial.MyRsuApp" ]
+      "applications": [ "pt.uminho.npr.tutorial.RsuApp" ]
     },
     {
       "position": {
@@ -140,7 +140,7 @@
         "longitude": 13.306261
       },
       "name": "RSU3",
-      "applications": [ "pt.uminho.npr.tutorial.MyRsuApp" ]
+      "applications": [ "pt.uminho.npr.tutorial.RsuApp" ]
     },
     {
       "position": {
@@ -148,7 +148,7 @@
         "longitude": 13.308457
       },
       "name": "RSU4",
-      "applications": [ "pt.uminho.npr.tutorial.MyRsuApp" ]
+      "applications": [ "pt.uminho.npr.tutorial.RsuApp" ]
     },
     {
       "position": {
@@ -156,7 +156,7 @@
         "longitude": 13.314728
       },
       "name": "RSU5",
-      "applications": [ "pt.uminho.npr.tutorial.MyRsuApp" ]
+      "applications": [ "pt.uminho.npr.tutorial.RsuApp" ]
     },
     {
       "position": {
@@ -164,15 +164,7 @@
         "longitude": 13.308851
       },
       "name": "RSU6",
-      "applications": [ "pt.uminho.npr.tutorial.MyRsuApp" ]
-    },
-    {
-      "position": { 
-        "latitude": 52.458224, 
-        "longitude": 13.300149 
-      },
-      "name": "S1",
-      "applications": [ "pt.uminho.npr.tutorial.SensorApp" ]
+      "applications": [ "pt.uminho.npr.tutorial.RsuApp" ]
     },
     {
       "position": { 

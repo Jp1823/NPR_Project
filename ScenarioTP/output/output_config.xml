@@ -56,7 +56,6 @@
             </subscription>
         </subscriptions>
     </output>
-
     <output id="websocket" enabled="true" loader="org.eclipse.mosaic.fed.output.generator.websocket.WebsocketVisualizerLoader">
         <synchronized>true</synchronized>
         <port>46587</port>

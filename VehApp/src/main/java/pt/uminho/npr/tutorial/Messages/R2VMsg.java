@@ -3,32 +3,31 @@ package pt.uminho.npr.tutorial.Messages;
 import java.io.ByteArrayOutputStream;
 import java.io.DataOutputStream;
 import java.io.IOException;
+import java.util.List;
 import javax.annotation.Nonnull;
 import org.eclipse.mosaic.lib.objects.v2x.EncodedPayload;
 import org.eclipse.mosaic.lib.objects.v2x.MessageRouting;
 import org.eclipse.mosaic.lib.objects.v2x.V2xMessage;
 
-public class F2RMsg extends V2xMessage {
+public class R2VMsg extends V2xMessage {
     private final String uniqueId;
     private final long timeStamp;
     private final long timestampLimit;
-    private final String messageType;
-    private final String fogNodeId;
-    private final String rsuDestination;
-    private final String vehicleDestination;
+    private final String vehDestination;
+    private final String nextHop;
     private final String order;
+    private final List<String> forwardingTrail;
 
-    public F2RMsg(MessageRouting routing, String uniqueId, long timeStamp, long timestampLimit,
-                  String messageType, String fogNodeId, String rsuDestination, String vehicleDestination, String order) {
+    public R2VMsg(MessageRouting routing, String uniqueId, long timeStamp, long timestampLimit,
+                  String vehDestination, String nextHop, String order, List<String> forwardingTrail) {
         super(routing);
         this.uniqueId = uniqueId;
         this.timeStamp = timeStamp;
         this.timestampLimit = timestampLimit;
-        this.messageType = messageType;
-        this.fogNodeId = fogNodeId;
-        this.rsuDestination = rsuDestination;
-        this.vehicleDestination = vehicleDestination;
+        this.vehDestination = vehDestination;
+        this.nextHop = nextHop;
         this.order = order;
+        this.forwardingTrail = forwardingTrail;
     }
 
     @Nonnull
@@ -39,14 +38,16 @@ public class F2RMsg extends V2xMessage {
             dos.writeUTF(uniqueId);
             dos.writeLong(timeStamp);
             dos.writeLong(timestampLimit);
-            dos.writeUTF(messageType);
-            dos.writeUTF(fogNodeId);
-            dos.writeUTF(rsuDestination);
-            dos.writeUTF(vehicleDestination);
+            dos.writeUTF(vehDestination);
+            dos.writeUTF(nextHop);
             dos.writeUTF(order);
+            dos.writeInt(forwardingTrail.size());
+            for (String node : forwardingTrail) {
+                dos.writeUTF(node);
+            }
             return new EncodedPayload(baos.toByteArray(), baos.size());
         } catch (IOException e) {
-            throw new RuntimeException("ERROR ENCODING F2RMSG", e);
+            throw new RuntimeException("ERROR ENCODING R2VMSG", e);
         }
     }
 
@@ -57,40 +58,35 @@ public class F2RMsg extends V2xMessage {
     public long getTimeStamp() {
         return timeStamp;
     }
-
+    
     public long getTimestampLimit() {
         return timestampLimit;
     }
 
-    public String getMessageType() {
-        return messageType;
+    public String getVehDestination() {
+        return vehDestination;
     }
 
-    public String getFogNodeId() {
-        return fogNodeId;
-    }
-
-    public String getRsuDestination() {
-        return rsuDestination;
-    }
-
-    public String getVehicleDestination() {
-        return vehicleDestination;
+    public String getNextHop() {
+        return nextHop;
     }
 
     public String getOrder() {
         return order;
     }
+    
+    public List<String> getForwardingTrail() {
+        return forwardingTrail;
+    }
 
     @Override
     public String toString() {
-        return "F2R MESSAGE - UNIQUEID: " + uniqueId +
+        return "R2V MESSAGE - UNIQUEID: " + uniqueId +
                " | TIME: " + timeStamp +
                " | TIMESTAMP_LIMIT: " + timestampLimit +
-               " | TYPE: " + messageType +
-               " | FOG_NODE: " + fogNodeId +
-               " | RSU_DESTINATION: " + rsuDestination +
-               " | VEHICLE_DESTINATION: " + vehicleDestination +
-               " | ORDER: " + order;
+               " | VEH_DESTINATION: " + vehDestination +
+               " | NEXT_HOP: " + nextHop +
+               " | ORDER: " + order +
+               " | FORWARDING_TRAIL: " + forwardingTrail;
     }
 }

@@ -120,10 +120,42 @@
   "rsus": [
     {
       "position": {
+        "latitude": 52.455121,
+        "longitude": 13.300778
+      },
+      "name": "RSU1",
+      "applications": [ "pt.uminho.npr.tutorial.RsuApp" ]
+    },
+    {
+      "position": {
+        "latitude": 52.452891,
+        "longitude": 13.300620
+      },
+      "name": "RSU2",
+      "applications": [ "pt.uminho.npr.tutorial.RsuApp" ]
+    },
+    {
+      "position": {
         "latitude": 52.454540,
         "longitude": 13.306261
       },
       "name": "RSU3",
+      "applications": [ "pt.uminho.npr.tutorial.RsuApp" ]
+    },
+    {
+      "position": {
+        "latitude": 52.456787,
+        "longitude": 13.308457
+      },
+      "name": "RSU4",
+      "applications": [ "pt.uminho.npr.tutorial.RsuApp" ]
+    },
+    {
+      "position": {
+        "latitude": 52.454773,
+        "longitude": 13.314728
+      },
+      "name": "RSU5",
       "applications": [ "pt.uminho.npr.tutorial.RsuApp" ]
     },
     {
@@ -136,18 +168,10 @@
     },
     {
       "position": { 
-        "latitude": 52.454544, 
-        "longitude": 13.306265 
+        "latitude": 52.457211, 
+        "longitude": 13.305447 
       },
-      "name": "FOG1",
-      "applications": [ "pt.uminho.npr.tutorial.FogApp" ]
-    },
-    {
-      "position": { 
-        "latitude": 52.451284, 
-        "longitude": 13.308856 
-      },
-      "name": "FOG2",
+      "name": "FogNode",
       "applications": [ "pt.uminho.npr.tutorial.FogApp" ]
     }
   ]

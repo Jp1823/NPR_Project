@@ -1,7 +1,9 @@
 package pt.uminho.npr.tutorial;
 
-import pt.uminho.npr.tutorial.Messages.*;
-
+import pt.uminho.npr.tutorial.VehApp.VehicleGraph.NodeRecord;
+import pt.uminho.npr.tutorial.Messages.R2VMsg;
+import pt.uminho.npr.tutorial.Messages.V2RACK;
+import pt.uminho.npr.tutorial.Messages.V2VExt;
 import org.eclipse.mosaic.fed.application.app.AbstractApplication;
 import org.eclipse.mosaic.fed.application.app.api.CommunicationApplication;
 import org.eclipse.mosaic.fed.application.app.api.VehicleApplication;
@@ -17,41 +19,214 @@ import org.eclipse.mosaic.lib.objects.v2x.MessageRouting;
 import org.eclipse.mosaic.lib.objects.v2x.V2xMessage;
 import org.eclipse.mosaic.rti.TIME;
 import org.eclipse.mosaic.lib.util.scheduling.Event;
+
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
-import java.util.HashMap;
-import java.util.Map;
+import java.util.*;
+import java.util.concurrent.atomic.AtomicInteger;
 
+/**
+ * VEHAPP IMPLEMENTATION FOR V2X COMMUNICATION, NEIGHBOR MANAGEMENT, AND MESSAGE FORWARDING.
+ * THIS VERSION INTEGRATES THE REQUIRED NEIGHBOR INFORMATION (DISTANCE TO VEHICLE, NEIGHBOR'S RSU DISTANCE,
+ * RSU REACHABILITY, AND NEIGHBOR LIST) INTO A SINGLE, DEDICATED VEHICLEGRAPH CLASS, RESULTING IN A ROBUST,
+ * MODULAR, AND SIMPLIFIED DESIGN.
+ */
 public class VehApp extends AbstractApplication<VehicleOperatingSystem>
         implements VehicleApplication, CommunicationApplication {
 
+    // CONSTANTS
     private final long MSG_DELAY = 100 * TIME.MILLI_SECOND;
     private final int TX_POWER = 50;
-    private final double TX_RANGE = 500.0;
+    private final double TX_RANGE = 100.0;
+    private final double RSU_RANGE = 100.0;
+    private final long CLEAN_THRESHOLD = 1000 * TIME.MILLI_SECOND;
+
+    // VEHICLE STATE VARIABLES
     private boolean startSending = false;
     private double vehHeading;
     private double vehSpeed;
     private int vehLane;
-    private final Map<String, Double> neighborsDistance = new HashMap<>();
+
+    // STATIC RSU INFORMATION (E.G., A FIXED RSU)
+    private final Map<String, GeoPoint> staticRsus = new HashMap<>();
+
+    // VEHICLEGRAPH: MANAGES ALL NEIGHBOR RECORDS AND ASSOCIATED GRAPH INFORMATION
+    private final VehicleGraph vehicleGraph = new VehicleGraph();
+
+    private static final AtomicInteger v2rCounter = new AtomicInteger(0);
+
+    /**
+     * VEHICLEGRAPH CLASS.
+     * THIS CLASS CENTRALIZES THE MANAGEMENT OF NEIGHBOR INFORMATION INCLUDING:
+     * - DISTANCE FROM THE CURRENT VEHICLE TO THE NEIGHBOR,
+     * - NEIGHBOR'S DISTANCE TO THE NEAREST RSU,
+     * - WHETHER THE NEIGHBOR HAS A REACHABLE RSU,
+     * - THE LIST OF NEIGHBORS OF THE NEIGHBOR,
+     * - AND THE TIMESTAMP OF THE LAST UPDATE.
+     */
+    public static class VehicleGraph {
+
+        // MAP: VEHICLE ID -> NODE RECORD
+        private final Map<String, NodeRecord> nodes = new HashMap<>();
+
+        /**
+         * NODE RECORD.
+         */
+        public static class NodeRecord {
+            private final double distanceToVehicle;
+            private final double rsuDistance;
+            private final boolean rsuReachable;
+            private final List<String> neighborList;
+            private final long timestamp;
+
+            public NodeRecord(double distanceToVehicle, double rsuDistance, boolean rsuReachable,
+                              List<String> neighborList, long timestamp) {
+                this.distanceToVehicle = distanceToVehicle;
+                this.rsuDistance = rsuDistance;
+                this.rsuReachable = rsuReachable;
+                this.neighborList = new ArrayList<>(neighborList);
+                this.timestamp = timestamp;
+            }
+
+            public double getDistanceToVehicle() {
+                return distanceToVehicle;
+            }
+
+            public double getRsuDistance() {
+                return rsuDistance;
+            }
+
+            public boolean isRsuReachable() {
+                return rsuReachable;
+            }
+
+            public List<String> getNeighborList() {
+                return Collections.unmodifiableList(neighborList);
+            }
+
+            public long getTimestamp() {
+                return timestamp;
+            }
+
+            @Override
+            public String toString() {
+                return String.format("[DISTANCE: %.2fM] [RSU DIST: %.2fM] [RSU REACHABLE: %s] [NEIGHBOR LIST: %s]",
+                        distanceToVehicle, rsuDistance, rsuReachable ? "YES" : "NO",
+                        neighborList.toString().toUpperCase());
+            }
+        }
+
+        /**
+         * ADDS OR UPDATES A NODE RECORD FOR A GIVEN VEHICLE.
+         *
+         * @param vehicleId THE VEHICLE ID.
+         * @param record    THE NODE RECORD.
+         */
+        public void addOrUpdateNode(String vehicleId, NodeRecord record) {
+            nodes.put(vehicleId, record);
+        }
+
+        /**
+         * RETURNS AN UNMODIFIABLE SNAPSHOT OF CURRENT NODE RECORDS.
+         *
+         * @return SNAPSHOT OF NODE RECORDS.
+         */
+        public Map<String, NodeRecord> getNodesSnapshot() {
+            return Collections.unmodifiableMap(new HashMap<>(nodes));
+        }
+
+        /**
+         * REMOVES NODE RECORDS THAT ARE STALE BASED ON THE SPECIFIED THRESHOLD.
+         *
+         * @param currentTime CURRENT SIMULATION TIME.
+         * @param threshold   TIME THRESHOLD.
+         */
+        public void removeStaleNodes(long currentTime, long threshold) {
+            Iterator<Map.Entry<String, NodeRecord>> it = nodes.entrySet().iterator();
+            while (it.hasNext()) {
+                Map.Entry<String, NodeRecord> entry = it.next();
+                if (currentTime - entry.getValue().getTimestamp() > threshold) {
+                    it.remove();
+                }
+            }
+        }
+
+        /**
+         * CALCULATES THE MINIMUM HOP COUNT BETWEEN TWO VEHICLES USING BFS.
+         * THE ADJACENCY IS BASED ON THE NEIGHBOR LIST OF EACH NODE.
+         *
+         * @param start       THE STARTING VEHICLE.
+         * @param destination THE DESTINATION VEHICLE.
+         * @return MINIMUM NUMBER OF HOPS OR Integer.MAX_VALUE IF NOT REACHABLE.
+         */
+        public int getMinHopCount(String start, String destination) {
+            if (start.equalsIgnoreCase(destination)) return 0;
+            Queue<String> queue = new LinkedList<>();
+            Map<String, Integer> distanceMap = new HashMap<>();
+            queue.offer(start);
+            distanceMap.put(start, 0);
+            while (!queue.isEmpty()) {
+                String current = queue.poll();
+                int hops = distanceMap.get(current);
+                if (current.equalsIgnoreCase(destination)) {
+                    return hops;
+                }
+                NodeRecord record = nodes.get(current);
+                if (record != null) {
+                    for (String neighbor : record.getNeighborList()) {
+                        if (!distanceMap.containsKey(neighbor)) {
+                            distanceMap.put(neighbor, hops + 1);
+                            queue.offer(neighbor);
+                        }
+                    }
+                }
+            }
+            return Integer.MAX_VALUE;
+        }
+    }
+
+    /**
+     * LOGS A MESSAGE AT THE INFO LEVEL (IMPORTANT EVENTS, INTERNAL STRUCTURE PRINTS, ETC.).
+     *
+     * @param message THE MESSAGE TO LOG.
+     */
+    private void logInfo(String message) {
+        String vehId = getOs().getId().toUpperCase();
+        getLog().infoSimTime(this, "[" + vehId + "] [INFO] " + message.toUpperCase());
+    }
+
+    /**
+     * LOGS A MESSAGE AT THE DEBUG LEVEL (DETAILED PROCESSING INFORMATION).
+     *
+     * @param message THE MESSAGE TO LOG.
+     */
+    private void logDebug(String message) {
+        String vehId = getOs().getId().toUpperCase();
+        getLog().infoSimTime(this, "[" + vehId + "] [DEBUG] " + message.toUpperCase());
+    }
 
     @Override
     public void onStartup() {
-        getOs().getAdHocModule().enable(new AdHocModuleConfiguration()
-                .addRadio()
-                .channel(AdHocChannel.CCH)
-                .power(TX_POWER)
-                .distance(TX_RANGE)
-                .create());
-        String vehId = getOs().getId().toUpperCase();
-        getLog().infoSimTime(this, "[" + vehId + "] [INFO] VEHICLE APP STARTUP");
+        // ENABLE AD-HOC RADIO MODULE
+        getOs().getAdHocModule().enable(
+                new AdHocModuleConfiguration()
+                        .addRadio()
+                        .channel(AdHocChannel.CCH)
+                        .power(TX_POWER)
+                        .distance(TX_RANGE)
+                        .create()
+        );
+        // INITIALIZE STATIC RSU INFORMATION
+        staticRsus.put("RSU_0", GeoPoint.latLon(52.454540, 13.306261, 0));
+        logInfo("VEHICLE APP STARTUP");
+        // SCHEDULE FIRST EVENT
         getOs().getEventManager().addEvent(getOs().getSimulationTime() + MSG_DELAY, this);
     }
 
     @Override
     public void onShutdown() {
-        String vehId = getOs().getId().toUpperCase();
-        printNeighbors();
-        getLog().infoSimTime(this, "[" + vehId + "] [INFO] VEHICLE APP SHUTDOWN");
+        printNeighborGraph();
+        logInfo("VEHICLE APP SHUTDOWN");
         getOs().getAdHocModule().disable();
     }
 
@@ -63,100 +238,321 @@ public class VehApp extends AbstractApplication<VehicleOperatingSystem>
         vehLane = updated.getRoadPosition().getLaneIndex();
         if (!startSending) {
             startSending = true;
-            String vehId = getOs().getId().toUpperCase();
-            getLog().infoSimTime(this, "[" + vehId + "] [INFO] VEHICLE APP READY TO SEND VEHICLE INFO MESSAGES");
+            logInfo("VEHICLE APP READY TO SEND NEIGHBOR INFORMATION");
         }
     }
 
     @Override
     public void processEvent(Event event) {
+        long currentTime = getOs().getSimulationTime();
         if (startSending) {
-            sendVehInfoMsg();
-            sendVehDetailMsg();
+            // CLEAN UP STALE RECORDS FROM THE VEHICLEGRAPH
+            vehicleGraph.removeStaleNodes(currentTime, CLEAN_THRESHOLD);
+            sendV2VExtMsg();
         }
-        printNeighbors();
-        getOs().getEventManager().addEvent(getOs().getSimulationTime() + MSG_DELAY, this);
+        // ALWAYS PRINT INTERNAL STRUCTURE
+        printNeighborGraph();
+        // SCHEDULE NEXT EVENT
+        getOs().getEventManager().addEvent(currentTime + MSG_DELAY, this);
     }
 
-    private void sendVehInfoMsg() {
+    /**
+     * SENDS A V2V EXTENDED MESSAGE CONTAINING NEIGHBOR INFORMATION.
+     */
+    private void sendV2VExtMsg() {
         MessageRouting routing = getOs().getAdHocModule().createMessageRouting()
                 .viaChannel(AdHocChannel.CCH)
                 .topoBroadCast();
         long currentTime = getOs().getSimulationTime();
-        V2VMsg msg = new V2VMsg(routing, currentTime, getOs().getId().toUpperCase(), getOs().getPosition());
-        getOs().getAdHocModule().sendV2xMessage(msg);
-        String vehId = getOs().getId().toUpperCase();
-        getLog().infoSimTime(this, "[" + vehId + "] [SENT] [V2V] " + msg + " AT TIME " + currentTime);
+        // OBTAIN LIST OF NEIGHBOR IDs FROM THE VEHICLEGRAPH
+        List<String> neighborList = new ArrayList<>(vehicleGraph.getNodesSnapshot().keySet());
+        V2VExt extMsg = new V2VExt(
+                routing,
+                currentTime,
+                getOs().getId().toUpperCase(),
+                getOs().getPosition(),
+                vehHeading,
+                vehSpeed,
+                vehLane,
+                neighborList
+        );
+        getOs().getAdHocModule().sendV2xMessage(extMsg);
+        logDebug("SENT V2VEXT: " + extMsg.toString() + " AT TIME " + currentTime);
     }
 
-    private void sendVehDetailMsg() {
-        MessageRouting routing = getOs().getAdHocModule().createMessageRouting()
-                .viaChannel(AdHocChannel.CCH)
-                .topoBroadCast();
-        long currentTime = getOs().getSimulationTime();
-        V2XMsg msg = new V2XMsg(routing, currentTime, "DIRECT", getOs().getId().toUpperCase(), getOs().getPosition(),
-                vehHeading, vehSpeed, vehLane);
-        getOs().getAdHocModule().sendV2xMessage(msg);
-        String vehId = getOs().getId().toUpperCase();
-        getLog().infoSimTime(this, "[" + vehId + "] [SENT] [V2X] " + msg + " AT TIME " + currentTime);
+    /**
+     * COMPUTES THE DISTANCE BETWEEN TWO GEOPOINTS USING THE HAVERSINE FORMULA.
+     *
+     * @param p1 FIRST GEOPOINT.
+     * @param p2 SECOND GEOPOINT.
+     * @return DISTANCE IN METERS.
+     */
+    private double computeDistance(GeoPoint p1, GeoPoint p2) {
+        double earthRadius = 6371000; // METERS
+        double dLat = Math.toRadians(p2.getLatitude() - p1.getLatitude());
+        double dLon = Math.toRadians(p2.getLongitude() - p1.getLongitude());
+        double a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+                   Math.cos(Math.toRadians(p1.getLatitude())) *
+                   Math.cos(Math.toRadians(p2.getLatitude())) *
+                   Math.sin(dLon / 2) * Math.sin(dLon / 2);
+        double c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+        return earthRadius * c;
+    }
+
+    /**
+     * DETERMINES THE NEAREST RSU FOR A GIVEN POSITION.
+     *
+     * @param pos          GEOPOINT OF THE TARGET.
+     * @param msgTimestamp MESSAGE TIMESTAMP.
+     * @return A NODE RECORD CONTAINING THE NEAREST RSU INFORMATION.
+     */
+    private VehicleGraph.NodeRecord computeNearestRsu(GeoPoint pos, long msgTimestamp) {
+        String bestRsu = "";
+        double minDistance = Double.MAX_VALUE;
+        for (Map.Entry<String, GeoPoint> entry : staticRsus.entrySet()) {
+            double distance = computeDistance(pos, entry.getValue());
+            if (distance < minDistance) {
+                minDistance = distance;
+                bestRsu = entry.getKey();
+            }
+        }
+        boolean reachable = minDistance <= RSU_RANGE;
+        logDebug("COMPUTED NEAREST RSU: " + bestRsu + " WITH DISTANCE: " + String.format("%.2f", minDistance)
+                 + "M, REACHABLE: " + (reachable ? "YES" : "NO") + ", MSG TIMESTAMP: " + msgTimestamp);
+        // FOR THE PURPOSE OF THE NODE RECORD, WE STORE THE RSU DISTANCE AS CALCULATED
+        // AND SET THE DISTANCE TO VEHICLE AS 0 (THIS WILL BE UPDATED WHEN RECEIVING A MESSAGE)
+        return new VehicleGraph.NodeRecord(0, minDistance, reachable, new ArrayList<>(), msgTimestamp);
+    }
+
+    /**
+     * PRINTS THE CURRENT VEHICLEGRAPH (ALL NODE RECORDS).
+     */
+    private void printNeighborGraph() {
+        StringBuilder sb = new StringBuilder();
+        Map<String, VehicleGraph.NodeRecord> snapshot = vehicleGraph.getNodesSnapshot();
+        for (Map.Entry<String, VehicleGraph.NodeRecord> entry : snapshot.entrySet()) {
+            sb.append(entry.getKey().toUpperCase()).append(" -> ").append(entry.getValue().toString()).append("\n");
+        }
+        logInfo("[VEHICLEGRAPH] \n" + sb.toString());
     }
 
     @Override
     public void onMessageReceived(ReceivedV2xMessage rcvMsg) {
-        String vehId = getOs().getId().toUpperCase();
         V2xMessage msg = rcvMsg.getMessage();
-        if (msg instanceof V2VMsg) {
-            V2VMsg vMsg = (V2VMsg) msg;
-            if (!vMsg.getSenderName().equalsIgnoreCase(vehId)) {
-                updateNeighborDistance(vMsg.getSenderName().toUpperCase(), computeDistance(getOs().getPosition(), vMsg.getSenderPos()));
-                getLog().infoSimTime(this, "[" + vehId + "] [RECEIVED] [V2V] " + msg);
-            }
-        } else if (msg instanceof V2XMsg) {
-            V2XMsg vxMsg = (V2XMsg) msg;
-            if (!vxMsg.getVehicleId().equalsIgnoreCase(vehId)) {
+        if (msg instanceof V2VExt) {
+            V2VExt extMsg = (V2VExt) msg;
+            String senderId = extMsg.getSenderName().toUpperCase();
+            long msgTimestamp = extMsg.getTimeStamp();
+            double distanceToSender = computeDistance(getOs().getPosition(), extMsg.getSenderPos());
+            // COMPUTE RSU INFORMATION FOR THE SENDER
+            VehicleGraph.NodeRecord rsuInfo = computeNearestRsu(extMsg.getSenderPos(), msgTimestamp);
+            // CREATE A NODE RECORD FOR THE NEIGHBOR WITH THE REQUIRED INFORMATION:
+            // - DISTANCE FROM CURRENT VEHICLE TO THE NEIGHBOR
+            // - NEIGHBOR'S RSU DISTANCE
+            // - RSU REACHABILITY
+            // - NEIGHBOR LIST OBTAINED FROM THE V2VEXT MESSAGE
+            VehicleGraph.NodeRecord nodeRecord = new VehicleGraph.NodeRecord(
+                    distanceToSender,
+                    rsuInfo.getRsuDistance(),
+                    rsuInfo.isRsuReachable(),
+                    extMsg.getNeighborList(),
+                    msgTimestamp
+            );
+            vehicleGraph.addOrUpdateNode(senderId, nodeRecord);
+            logDebug("UPDATED VEHICLEGRAPH NODE FOR " + senderId + " WITH RECORD: " + nodeRecord.toString());
+        } else if (msg instanceof R2VMsg) {
+            R2VMsg r2vMsg = (R2VMsg) msg;
+            String currentVehId = getOs().getId().toUpperCase();
+        
+            // IF THE CURRENT VEHICLE IS NOT THE DESIGNATED NEXT HOP, DROP THE MESSAGE IMMEDIATELY
+            if (!r2vMsg.getNextHop().equalsIgnoreCase(currentVehId)) {
+                logDebug("CURRENT VEHICLE (" + currentVehId + ") IS NOT THE NEXT HOP (" 
+                         + r2vMsg.getNextHop().toUpperCase() + "); DROPPING MESSAGE");
                 return;
             }
-            getLog().infoSimTime(this, "[" + vehId + "] [RECEIVED] [V2X] " + vxMsg);
-        } else if (msg instanceof F2RMsg) {
-            F2RMsg f2rMsg = (F2RMsg) msg;
-            if (f2rMsg.getVehicleDestinations().contains(vehId)) {
-                getLog().infoSimTime(this, "[" + vehId + "] [RECEIVED] [F2R] [" + f2rMsg.getRsuDestinations() + "] ACK RECEIVED: " + f2rMsg);
-            } else {
+            
+            // IF CURRENT VEHICLE IS THE FINAL DESTINATION, DELIVER THE MESSAGE AND TERMINATE THE CYCLE
+            if (r2vMsg.getVehDestination().equalsIgnoreCase(currentVehId)) {
+                logInfo("FINAL DELIVERY R2V MESSAGE RECEIVED: " + r2vMsg.toString());
+                handleUpstreamAck(r2vMsg);
                 return;
             }
-        } else {
+            
+            // IF CURRENT VEHICLE IS ALREADY PRESENT IN THE FORWARDING TRAIL, DROP THE MESSAGE TO AVOID LOOPS
+            if (r2vMsg.getForwardingTrail().contains(currentVehId)) {
+                logDebug("MESSAGE ALREADY PASSED THROUGH " + currentVehId + "; DROPPING MESSAGE");
+                return;
+            }
+            
+            // IF THE VEHICLE DESTINATION IS DIRECTLY REACHABLE FROM THE CURRENT VEHICLE, PERFORM DIRECT FORWARDING
+            if (vehicleGraph.getNodesSnapshot().containsKey(r2vMsg.getVehDestination().toUpperCase())) {
+                List<String> updatedTrail = new ArrayList<>(r2vMsg.getForwardingTrail());
+                updatedTrail.add(currentVehId);
+                R2VMsg directR2vMsg = new R2VMsg(
+                    r2vMsg.getRouting(),
+                    r2vMsg.getUniqueId(),
+                    r2vMsg.getTimeStamp(),
+                    r2vMsg.getTimestampLimit(),
+                    r2vMsg.getVehDestination(),
+                    r2vMsg.getVehDestination(), // DIRECT FORWARDING TO DESTINATION
+                    r2vMsg.getOrder(),
+                    updatedTrail
+                );
+                getOs().getAdHocModule().sendV2xMessage(directR2vMsg);
+                logInfo("DIRECT R2V MESSAGE FORWARDED TO DESTINATION " + r2vMsg.getVehDestination() +
+                        " WITH UPDATED TRAIL: " + updatedTrail.toString());
+                return;
+            }
+            
+            // OTHERWISE, PERFORM MULTIHOP FORWARDING DECISION USING VEHICLE GRAPH INFORMATION
+            int bestHops = Integer.MAX_VALUE;
+            double bestDistance = Double.MAX_VALUE;
+            String bestCandidate = null;
+            Map<String, NodeRecord> nodesSnapshot = vehicleGraph.getNodesSnapshot();
+        
+            // ITERATE OVER THE VEHICLE GRAPH TO DETERMINE THE BEST FORWARDING PATH
+            for (Map.Entry<String, NodeRecord> entry : nodesSnapshot.entrySet()) {
+                String candidate = entry.getKey();
+                int hops = vehicleGraph.getMinHopCount(candidate, r2vMsg.getVehDestination());
+                if (hops == Integer.MAX_VALUE) continue;
+                double candidateRsuDist = entry.getValue().getRsuDistance();
+                if (hops < bestHops || (hops == bestHops && candidateRsuDist < bestDistance)) {
+                    bestHops = hops;
+                    bestDistance = candidateRsuDist;
+                    bestCandidate = candidate;
+                }
+            }
+        
+            // IF NO SUITABLE CANDIDATE IS FOUND, DROP THE MESSAGE
+            if (bestCandidate == null) {
+                logInfo("NO CANDIDATE FOUND TO FORWARD R2V MESSAGE TO DESTINATION " + r2vMsg.getVehDestination());
+                return;
+            }
+        
+            // UPDATE THE FORWARDING TRAIL AND FORWARD THE R2V MESSAGE TO THE SELECTED BEST CANDIDATE
+            List<String> updatedTrail = new ArrayList<>(r2vMsg.getForwardingTrail());
+            updatedTrail.add(currentVehId);
+            R2VMsg newR2vMsg = new R2VMsg(
+                r2vMsg.getRouting(),
+                r2vMsg.getUniqueId(),
+                r2vMsg.getTimeStamp(),
+                r2vMsg.getTimestampLimit(),
+                r2vMsg.getVehDestination(),
+                bestCandidate,
+                r2vMsg.getOrder(),
+                updatedTrail
+            );
+            getOs().getAdHocModule().sendV2xMessage(newR2vMsg);
+            logInfo("R2V MESSAGE FORWARDED TO " + bestCandidate + " WITH UPDATED TRAIL: " + updatedTrail.toString());
             return;
+        } else if (msg instanceof V2RACK) {
+            V2RACK v2rackMsg = (V2RACK) msg;
+            String currentVehId = getOs().getId().toUpperCase();
+            // IF CURRENT VEHICLE IS NOT THE DESIGNATED NEXT HOP, DROP THE MESSAGE IMMEDIATELY
+            if (!v2rackMsg.getNextHop().equalsIgnoreCase(currentVehId)) {
+                logDebug("CURRENT VEHICLE (" + currentVehId + ") IS NOT THE NEXT HOP (" 
+                         + v2rackMsg.getNextHop().toUpperCase() + "); DROPPING V2RACK MESSAGE");
+                return;
+            }
+            // IF THE CHECKLIST IS EMPTY, THIS MEANS THE UPSTREAM PATH HAS BEEN COMPLETED
+            // FOR DIRECT DELIVERY TO THE RSU DESTINATION
+            if (v2rackMsg.getChecklist().isEmpty()) {
+                V2RACK directV2rackMsg = new V2RACK(
+                    v2rackMsg.getRouting(),
+                    v2rackMsg.getUniqueId(),
+                    v2rackMsg.getOriginalMsgId(),
+                    v2rackMsg.getTimeStamp(),
+                    v2rackMsg.getTimestampLimit(),
+                    v2rackMsg.getVehicleId(),
+                    v2rackMsg.getRsuDestination(),
+                    v2rackMsg.getRsuDestination(), // DIRECT NEXT HOP IS THE RSU DESTINATION
+                    v2rackMsg.getChecklist() // CHECKLIST REMAINS EMPTY
+                );
+                getOs().getAdHocModule().sendV2xMessage(directV2rackMsg);
+                logInfo("DIRECT V2RACK MESSAGE FORWARDED TO RSU DESTINATION " + v2rackMsg.getRsuDestination() +
+                        " WITH EMPTY CHECKLIST");
+                return;
+            }
+            // OTHERWISE, UPDATE THE CHECKLIST BY REMOVING THE CURRENT NEXT HOP
+            List<String> updatedChecklist = new ArrayList<>(v2rackMsg.getChecklist());
+            // REMOVE THE FIRST ELEMENT WHICH IS THE CURRENT NEXT HOP
+            updatedChecklist.remove(0);
+            // SET THE NEW NEXT HOP: IF THE UPDATED CHECKLIST IS EMPTY, THEN RSU DESTINATION BECOMES THE NEXT HOP
+            String newNextHop = updatedChecklist.isEmpty() ? v2rackMsg.getRsuDestination() : updatedChecklist.get(0);
+            V2RACK newV2rackMsg = new V2RACK(
+                v2rackMsg.getRouting(),
+                v2rackMsg.getUniqueId(),
+                v2rackMsg.getOriginalMsgId(),
+                v2rackMsg.getTimeStamp(),
+                v2rackMsg.getTimestampLimit(),
+                v2rackMsg.getVehicleId(),
+                v2rackMsg.getRsuDestination(),
+                newNextHop,
+                updatedChecklist
+            );
+            getOs().getAdHocModule().sendV2xMessage(newV2rackMsg);
+            logInfo("V2RACK MESSAGE FORWARDED TO NEXT HOP " + newNextHop +
+                    " WITH UPDATED CHECKLIST: " + updatedChecklist.toString());
+            return;        
+        }       
+    }
+
+    /**
+     * HANDLES THE UPSTREAM ACKNOWLEDGEMENT PROCESS.
+     * THIS FUNCTION IS CALLED WHEN AN R2V MESSAGE REACHES ITS FINAL DESTINATION.
+     * IT INVERTS THE FORWARDING TRAIL (CHECKLIST) FROM THE R2V MESSAGE TO OBTAIN THE UPSTREAM PATH,
+     * CREATES A V2RACK MESSAGE, AND SENDS IT UPSTREAM TOWARD THE RSU.
+     */
+    private void handleUpstreamAck(R2VMsg r2vMsg) {
+        String currentVehId = getOs().getId().toUpperCase();
+        long currentTime = getOs().getSimulationTime();
+        // INVERT THE FORWARDING TRAIL FROM THE RECEIVED R2V MESSAGE TO OBTAIN THE UPSTREAM PATH
+        List<String> originalTrail = r2vMsg.getForwardingTrail();
+        List<String> reversedTrail = new ArrayList<>(originalTrail);
+        Collections.reverse(reversedTrail);
+        // SET THE NEXT HOP FOR THE ACKNOWLEDGEMENT AS THE FIRST ELEMENT IN THE REVERSED TRAIL, IF AVAILABLE
+        String nextHop;
+        if (!reversedTrail.isEmpty()) {
+            nextHop = reversedTrail.get(0);
+        } else {
+            // IF THE REVERSED TRAIL IS EMPTY, ASSUME THAT THE RSU IS THE DESTINATION
+            nextHop = "RSU_0";
         }
-    }
-
-    private void updateNeighborDistance(String senderId, double distance) {
-        neighborsDistance.put(senderId, distance);
-        String vehId = getOs().getId().toUpperCase();
-        getLog().infoSimTime(this, "[" + vehId + "] [INFO] UPDATED NEIGHBOR " + senderId + " WITH DISTANCE: " + String.format("%.4f", distance));
-    }
-
-    private double computeDistance(GeoPoint p1, GeoPoint p2) {
-        double latDiff = p1.getLatitude() - p2.getLatitude();
-        double lonDiff = p1.getLongitude() - p2.getLongitude();
-        return Math.sqrt(latDiff * latDiff + lonDiff * lonDiff);
-    }
-
-    private void printNeighbors() {
-        StringBuilder sb = new StringBuilder();
-        String vehId = getOs().getId().toUpperCase();
-        sb.append("[").append(vehId).append("] [INFO] NEIGHBORS (ID -> DISTANCE):\n");
-        for (Map.Entry<String, Double> entry : neighborsDistance.entrySet()) {
-            sb.append("  ").append(entry.getKey()).append(" -> ").append(String.format("%.4f", entry.getValue())).append("\n");
-        }
-        getLog().infoSimTime(this, sb.toString());
+        // DEFINE THE RSU DESTINATION; ASSUMING STATIC RSU INFORMATION (E.G., "RSU_0")
+        String rsuDestination = "RSU_0";
+        // CREATE A UNIQUE ID FOR THE V2RACK MESSAGE
+        String v2rackUniqueId = "V2RACK-" + v2rCounter.incrementAndGet();
+        // DEFINE TIMESTAMP LIMIT, FOR INSTANCE, CURRENT TIME PLUS 10 SECONDS (10,000 MS)
+        long timestampLimit = currentTime + 10000L;
+        // CREATE THE V2RACK MESSAGE USING THE NEW V2RACK CLASS
+        V2RACK v2rackMsg = new V2RACK(
+            getOs().getAdHocModule().createMessageRouting().viaChannel(AdHocChannel.CCH).topoBroadCast(),
+            v2rackUniqueId,
+            r2vMsg.getUniqueId(), // ORIGINAL MESSAGE ID FROM THE R2V MESSAGE
+            currentTime,
+            timestampLimit,
+            currentVehId, // VEHICLE ID OF THE ACK SENDER
+            rsuDestination,
+            nextHop,
+            reversedTrail // THE INVERTED FORWARDING TRAIL (CHECKLIST)
+        );
+        // SEND THE V2RACK MESSAGE UPSTREAM
+        getOs().getAdHocModule().sendV2xMessage(v2rackMsg);
+        logInfo("V2RACK MESSAGE SENT UPSTREAM: " + v2rackMsg.toString());
     }
 
     @Override
-    public void onMessageTransmitted(V2xMessageTransmission tx) {}
+    public void onMessageTransmitted(V2xMessageTransmission tx) {
+        logDebug("MESSAGE TRANSMITTED");
+    }
 
     @Override
-    public void onAcknowledgementReceived(ReceivedAcknowledgement ack) {}
+    public void onAcknowledgementReceived(ReceivedAcknowledgement ack) {
+        logDebug("ACKNOWLEDGEMENT RECEIVED: " + ack.toString());
+    }
 
     @Override
-    public void onCamBuilding(CamBuilder camBuilder) {}
+    public void onCamBuilding(CamBuilder camBuilder) {
+        logDebug("CAM EVENT TRIGGERED");
+    }
 }

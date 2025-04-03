@@ -34,7 +34,8 @@ import java.util.concurrent.atomic.AtomicInteger;
  * THIS APPLICATION RUNS ON A ROAD-SIDE UNIT (RSU) RESPONSIBLE FOR:
  * - RECEIVING F2R MESSAGES FROM FOG NODES,
  * - UPDATING AND MANAGING NEIGHBOR INFORMATION BASED ON V2VEXT MESSAGES,
- * - FORWARDING R2V MESSAGES TO VEHICLES.
+ * - FORWARDING R2V MESSAGES TO VEHICLES,
+ * - AND PROCESSING UPSTREAM ACKNOWLEDGEMENTS (V2RACK) FROM VEHICLES.
  *
  * NEIGHBOR RECORDS ARE MANAGED VIA THE INNER EXTENDEDNEIGHBORRECORD CLASS,
  * WHICH STORES THE VEHICLE ID, DISTANCE, LAST UPDATE TIMESTAMP, AND A SIMPLE LIST OF NEIGHBORS.
@@ -54,6 +55,7 @@ public class RsuApp extends AbstractApplication<RoadSideUnitOperatingSystem>
     // ACTIVE NEIGHBOR RECORDS (KEY: VEHICLE ID)
     private final Map<String, ExtendedNeighborRecord> neighborRecords = new HashMap<>();
 
+    // ARCHIVE FOR SENT R2V MESSAGES (KEY: UNIQUE R2V MESSAGE ID)
     private final Map<String, R2VMsg> sentR2VArchive = new HashMap<>();
 
     // ATOMIC COUNTER FOR UNIQUE R2V MESSAGE IDS
@@ -109,7 +111,7 @@ public class RsuApp extends AbstractApplication<RoadSideUnitOperatingSystem>
         }
 
         public void setNeighborList(List<String> neighborList) {
-            // Update list ensuring all entries are in uppercase and unique
+            // UPDATE LIST ENSURING ALL ENTRIES ARE IN UPPERCASE AND UNIQUE
             Set<String> unique = new HashSet<>();
             for (String neighbor : neighborList) {
                 unique.add(neighbor.toUpperCase());
@@ -191,9 +193,9 @@ public class RsuApp extends AbstractApplication<RoadSideUnitOperatingSystem>
         } else if (msg instanceof V2RACK) {
             V2RACK ackMsg = (V2RACK) msg;
             String rsuId = getOs().getId().toUpperCase();
-            // IF THE MESSAGE IS NOT INTENDED FOR THIS RSU, DROP IT
-            if (!ackMsg.getRsuDestination().equalsIgnoreCase(rsuId)) {
-                logDebug("V2RACK MESSAGE NOT INTENDED FOR THIS RSU (" + rsuId + "); DROPPING MESSAGE");
+            // IF THE V2RACK MESSAGE IS NOT INTENDED FOR THIS RSU, DROP IT
+            if (!ackMsg.getNextHop().equalsIgnoreCase(rsuId)) {
+                logDebug("V2RACK MESSAGE NOT INTENDED FOR THIS RSU (" + rsuId + ") AS NEXT HOP; DROPPING MESSAGE");
                 return;
             }
             // VERIFY THAT THE ORIGINAL MESSAGE ID WAS ACTUALLY EMITTED
@@ -210,7 +212,7 @@ public class RsuApp extends AbstractApplication<RoadSideUnitOperatingSystem>
                         " BUT GOT " + ackMsg.getVehicleId());
                 return;
             }
-            // IF ALL CHECKS PASS, PRINT A DETAILED LOG MESSAGE OF ACK RECEIPT
+            // IF ALL CHECKS PASS, PRINT A DETAILED LOG MESSAGE OF ACK RECEIPT WITH MAXIMUM CONTENT
             logInfo("V2RACK MESSAGE RECEIVED AT RSU: " + ackMsg.toString() +
                     " | ORIGINAL R2V MESSAGE: " + originalMsg.toString());
         }
@@ -255,11 +257,13 @@ public class RsuApp extends AbstractApplication<RoadSideUnitOperatingSystem>
         logDebug("GENERATED R2V MESSAGE ID: " + messageId);
         // INITIALIZE FORWARDING TRAIL AND CREATE R2V MESSAGE
         List<String> forwardingTrail = new ArrayList<>();
+        // NOTE: THE RSU SOURCE IS NOW PASSED AS THE CURRENT RSU ID
         R2VMsg r2vMsg = new R2VMsg(
                 routing,
                 messageId,
                 f2rMsg.getTimeStamp(),
                 f2rMsg.getTimestampLimit(),
+                getOs().getId().toUpperCase(), // RSU SOURCE
                 vehDest,
                 nextHop,
                 f2rMsg.getOrder(),
@@ -269,7 +273,7 @@ public class RsuApp extends AbstractApplication<RoadSideUnitOperatingSystem>
                 ", TIMESTAMP_LIMIT = " + f2rMsg.getTimestampLimit() +
                 ", ORDER = " + f2rMsg.getOrder() +
                 ", VEHICLE_DEST = " + vehDest +
-                ", NEXT_HOP = " + nextHop);  
+                ", NEXT_HOP = " + nextHop);
         // ADD THE R2V MESSAGE TO THE SENT ARCHIVE USING ITS UNIQUE ID AS THE KEY
         sentR2VArchive.put(r2vMsg.getUniqueId(), r2vMsg);
         // SEND THE R2V MESSAGE

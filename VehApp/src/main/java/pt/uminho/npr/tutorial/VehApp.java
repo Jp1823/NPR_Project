@@ -205,6 +205,32 @@ public class VehApp extends AbstractApplication<VehicleOperatingSystem>
         getLog().infoSimTime(this, "[" + vehId + "] [DEBUG] " + message.toUpperCase());
     }
 
+    /**
+     * ADDS STATIC RSUS TO THE VEHICLE GRAPH.
+     * THIS METHOD CALCULATES THE DISTANCE FROM THE CURRENT VEHICLE POSITION TO EACH STATIC RSU,
+     * DETERMINES REACHABILITY, AND INSERTS/UPDATES THE RECORD IN THE VEHICLE GRAPH.
+     */
+    private void addStaticRsusToGraph() {
+        GeoPoint currentPos = getOs().getPosition();
+        long currentTime = getOs().getSimulationTime();
+        for (Map.Entry<String, GeoPoint> entry : staticRsus.entrySet()) {
+            String rsuId = entry.getKey().toUpperCase();
+            GeoPoint rsuPos = entry.getValue();
+            double distance = computeDistance(currentPos, rsuPos);
+            boolean reachable = distance <= RSU_RANGE;
+            // CREATE A NODE RECORD FOR THE STATIC RSU
+            VehicleGraph.NodeRecord rsuRecord = new VehicleGraph.NodeRecord(
+                    distance, // DISTANCE FROM VEHICLE TO RSU
+                    distance, // RSU DISTANCE (CAN BE SAME AS VEHICLE DISTANCE)
+                    reachable,
+                    new ArrayList<>(), // EMPTY NEIGHBOR LIST FOR STATIC RSU
+                    currentTime
+            );
+            vehicleGraph.addOrUpdateNode(rsuId, rsuRecord);
+            logDebug("ADDED STATIC RSU TO GRAPH: " + rsuId + " WITH DISTANCE: " + String.format("%.2f", distance));
+        }
+    }
+
     @Override
     public void onStartup() {
         // ENABLE AD-HOC RADIO MODULE
@@ -218,6 +244,8 @@ public class VehApp extends AbstractApplication<VehicleOperatingSystem>
         );
         // INITIALIZE STATIC RSU INFORMATION
         staticRsus.put("RSU_0", GeoPoint.latLon(52.454540, 13.306261, 0));
+        // ADD STATIC RSUS TO VEHICLE GRAPH
+        addStaticRsusToGraph();
         logInfo("VEHICLE APP STARTUP");
         // SCHEDULE FIRST EVENT
         getOs().getEventManager().addEvent(getOs().getSimulationTime() + MSG_DELAY, this);
@@ -246,11 +274,13 @@ public class VehApp extends AbstractApplication<VehicleOperatingSystem>
     public void processEvent(Event event) {
         long currentTime = getOs().getSimulationTime();
         if (startSending) {
-            // CLEAN UP STALE RECORDS FROM THE VEHICLEGRAPH
+            // UPDATE STATIC RSUS IN THE GRAPH BEFORE SENDING V2VEXT MESSAGE
+            addStaticRsusToGraph();
+            // REMOVE STALE RECORDS FROM THE VEHICLE GRAPH
             vehicleGraph.removeStaleNodes(currentTime, CLEAN_THRESHOLD);
             sendV2VExtMsg();
         }
-        // ALWAYS PRINT INTERNAL STRUCTURE
+        // ALWAYS PRINT CURRENT VEHICLE GRAPH
         printNeighborGraph();
         // SCHEDULE NEXT EVENT
         getOs().getEventManager().addEvent(currentTime + MSG_DELAY, this);
@@ -264,7 +294,7 @@ public class VehApp extends AbstractApplication<VehicleOperatingSystem>
                 .viaChannel(AdHocChannel.CCH)
                 .topoBroadCast();
         long currentTime = getOs().getSimulationTime();
-        // OBTAIN LIST OF NEIGHBOR IDs FROM THE VEHICLEGRAPH
+        // OBTAIN LIST OF NEIGHBOR IDS FROM THE VEHICLE GRAPH
         List<String> neighborList = new ArrayList<>(vehicleGraph.getNodesSnapshot().keySet());
         V2VExt extMsg = new V2VExt(
                 routing,
@@ -319,8 +349,6 @@ public class VehApp extends AbstractApplication<VehicleOperatingSystem>
         boolean reachable = minDistance <= RSU_RANGE;
         logDebug("COMPUTED NEAREST RSU: " + bestRsu + " WITH DISTANCE: " + String.format("%.2f", minDistance)
                  + "M, REACHABLE: " + (reachable ? "YES" : "NO") + ", MSG TIMESTAMP: " + msgTimestamp);
-        // FOR THE PURPOSE OF THE NODE RECORD, WE STORE THE RSU DISTANCE AS CALCULATED
-        // AND SET THE DISTANCE TO VEHICLE AS 0 (THIS WILL BE UPDATED WHEN RECEIVING A MESSAGE)
         return new VehicleGraph.NodeRecord(0, minDistance, reachable, new ArrayList<>(), msgTimestamp);
     }
 
@@ -363,57 +391,57 @@ public class VehApp extends AbstractApplication<VehicleOperatingSystem>
         } else if (msg instanceof R2VMsg) {
             R2VMsg r2vMsg = (R2VMsg) msg;
             String currentVehId = getOs().getId().toUpperCase();
-        
             // IF THE CURRENT VEHICLE IS NOT THE DESIGNATED NEXT HOP, DROP THE MESSAGE IMMEDIATELY
             if (!r2vMsg.getNextHop().equalsIgnoreCase(currentVehId)) {
                 logDebug("CURRENT VEHICLE (" + currentVehId + ") IS NOT THE NEXT HOP (" 
                          + r2vMsg.getNextHop().toUpperCase() + "); DROPPING MESSAGE");
                 return;
             }
-            
             // IF CURRENT VEHICLE IS THE FINAL DESTINATION, DELIVER THE MESSAGE AND TERMINATE THE CYCLE
             if (r2vMsg.getVehDestination().equalsIgnoreCase(currentVehId)) {
                 logInfo("FINAL DELIVERY R2V MESSAGE RECEIVED: " + r2vMsg.toString());
                 handleUpstreamAck(r2vMsg);
                 return;
             }
-            
             // IF CURRENT VEHICLE IS ALREADY PRESENT IN THE FORWARDING TRAIL, DROP THE MESSAGE TO AVOID LOOPS
             if (r2vMsg.getForwardingTrail().contains(currentVehId)) {
                 logDebug("MESSAGE ALREADY PASSED THROUGH " + currentVehId + "; DROPPING MESSAGE");
                 return;
             }
-            
-            // IF THE VEHICLE DESTINATION IS DIRECTLY REACHABLE FROM THE CURRENT VEHICLE, PERFORM DIRECT FORWARDING
-            if (vehicleGraph.getNodesSnapshot().containsKey(r2vMsg.getVehDestination().toUpperCase())) {
+            // EXTRACT THE RSU DESTINATION FROM THE ORIGINAL R2V MESSAGE (RSU SOURCE FIELD)
+            String rsuDestination = r2vMsg.getRsuSource();
+            // IF THE RSU DESTINATION IS DIRECTLY REACHABLE FROM THE CURRENT VEHICLE, PERFORM DIRECT FORWARDING
+            if (vehicleGraph.getNodesSnapshot().containsKey(rsuDestination.toUpperCase())) {
                 List<String> updatedTrail = new ArrayList<>(r2vMsg.getForwardingTrail());
                 updatedTrail.add(currentVehId);
+                MessageRouting newRouting = getOs().getAdHocModule().createMessageRouting()
+                    .viaChannel(AdHocChannel.CCH)
+                    .topoBroadCast();
                 R2VMsg directR2vMsg = new R2VMsg(
-                    r2vMsg.getRouting(),
+                    newRouting,
                     r2vMsg.getUniqueId(),
                     r2vMsg.getTimeStamp(),
                     r2vMsg.getTimestampLimit(),
+                    r2vMsg.getRsuSource(), // RSU SOURCE
                     r2vMsg.getVehDestination(),
-                    r2vMsg.getVehDestination(), // DIRECT FORWARDING TO DESTINATION
+                    r2vMsg.getVehDestination(), // DIRECT FORWARDING: SET NEXT HOP TO RSU DESTINATION
                     r2vMsg.getOrder(),
                     updatedTrail
                 );
                 getOs().getAdHocModule().sendV2xMessage(directR2vMsg);
-                logInfo("DIRECT R2V MESSAGE FORWARDED TO DESTINATION " + r2vMsg.getVehDestination() +
+                logInfo("DIRECT R2V MESSAGE FORWARDED TO RSU DESTINATION " + r2vMsg.getRsuSource() +
                         " WITH UPDATED TRAIL: " + updatedTrail.toString());
                 return;
             }
-            
-            // OTHERWISE, PERFORM MULTIHOP FORWARDING DECISION USING VEHICLE GRAPH INFORMATION
+            // OTHERWISE, PERFORM MULTIHOP FORWARDING DECISION TOWARD THE RSU
             int bestHops = Integer.MAX_VALUE;
             double bestDistance = Double.MAX_VALUE;
             String bestCandidate = null;
             Map<String, NodeRecord> nodesSnapshot = vehicleGraph.getNodesSnapshot();
-        
-            // ITERATE OVER THE VEHICLE GRAPH TO DETERMINE THE BEST FORWARDING PATH
+            // ITERATE OVER THE VEHICLE GRAPH TO DETERMINE THE BEST FORWARDING PATH TOWARD THE RSU
             for (Map.Entry<String, NodeRecord> entry : nodesSnapshot.entrySet()) {
                 String candidate = entry.getKey();
-                int hops = vehicleGraph.getMinHopCount(candidate, r2vMsg.getVehDestination());
+                int hops = vehicleGraph.getMinHopCount(candidate, rsuDestination);
                 if (hops == Integer.MAX_VALUE) continue;
                 double candidateRsuDist = entry.getValue().getRsuDistance();
                 if (hops < bestHops || (hops == bestHops && candidateRsuDist < bestDistance)) {
@@ -422,23 +450,25 @@ public class VehApp extends AbstractApplication<VehicleOperatingSystem>
                     bestCandidate = candidate;
                 }
             }
-        
             // IF NO SUITABLE CANDIDATE IS FOUND, DROP THE MESSAGE
             if (bestCandidate == null) {
-                logInfo("NO CANDIDATE FOUND TO FORWARD R2V MESSAGE TO DESTINATION " + r2vMsg.getVehDestination());
+                logInfo("NO CANDIDATE FOUND TO FORWARD R2V MESSAGE TO RSU DESTINATION " + rsuDestination);
                 return;
             }
-        
             // UPDATE THE FORWARDING TRAIL AND FORWARD THE R2V MESSAGE TO THE SELECTED BEST CANDIDATE
             List<String> updatedTrail = new ArrayList<>(r2vMsg.getForwardingTrail());
             updatedTrail.add(currentVehId);
+            MessageRouting newRouting = getOs().getAdHocModule().createMessageRouting()
+                .viaChannel(AdHocChannel.CCH)
+                .topoBroadCast();
             R2VMsg newR2vMsg = new R2VMsg(
-                r2vMsg.getRouting(),
+                newRouting,
                 r2vMsg.getUniqueId(),
                 r2vMsg.getTimeStamp(),
                 r2vMsg.getTimestampLimit(),
+                r2vMsg.getRsuSource(), // RSU SOURCE REMAINS UNCHANGED
                 r2vMsg.getVehDestination(),
-                bestCandidate,
+                bestCandidate, // NEXT HOP IS THE BEST CANDIDATE FOR REACHING THE RSU
                 r2vMsg.getOrder(),
                 updatedTrail
             );
@@ -457,8 +487,11 @@ public class VehApp extends AbstractApplication<VehicleOperatingSystem>
             // IF THE CHECKLIST IS EMPTY, THIS MEANS THE UPSTREAM PATH HAS BEEN COMPLETED
             // FOR DIRECT DELIVERY TO THE RSU DESTINATION
             if (v2rackMsg.getChecklist().isEmpty()) {
+                MessageRouting newRouting = getOs().getAdHocModule().createMessageRouting()
+                    .viaChannel(AdHocChannel.CCH)
+                    .topoBroadCast();
                 V2RACK directV2rackMsg = new V2RACK(
-                    v2rackMsg.getRouting(),
+                    newRouting,
                     v2rackMsg.getUniqueId(),
                     v2rackMsg.getOriginalMsgId(),
                     v2rackMsg.getTimeStamp(),
@@ -479,8 +512,11 @@ public class VehApp extends AbstractApplication<VehicleOperatingSystem>
             updatedChecklist.remove(0);
             // SET THE NEW NEXT HOP: IF THE UPDATED CHECKLIST IS EMPTY, THEN RSU DESTINATION BECOMES THE NEXT HOP
             String newNextHop = updatedChecklist.isEmpty() ? v2rackMsg.getRsuDestination() : updatedChecklist.get(0);
+            MessageRouting newRouting = getOs().getAdHocModule().createMessageRouting()
+                .viaChannel(AdHocChannel.CCH)
+                .topoBroadCast();
             V2RACK newV2rackMsg = new V2RACK(
-                v2rackMsg.getRouting(),
+                newRouting,
                 v2rackMsg.getUniqueId(),
                 v2rackMsg.getOriginalMsgId(),
                 v2rackMsg.getTimeStamp(),

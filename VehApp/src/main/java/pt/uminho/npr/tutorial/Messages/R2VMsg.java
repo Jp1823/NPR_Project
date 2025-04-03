@@ -9,21 +9,27 @@ import org.eclipse.mosaic.lib.objects.v2x.EncodedPayload;
 import org.eclipse.mosaic.lib.objects.v2x.MessageRouting;
 import org.eclipse.mosaic.lib.objects.v2x.V2xMessage;
 
+/**
+ * R2V MESSAGE - USED FOR DOWNSTREAM FORWARDING FROM THE RSU TO VEHICLES.
+ * NOW INCLUDES THE RSU SOURCE FIELD, WHICH IS WRITTEN IMMEDIATELY BEFORE THE VEHICLE DESTINATION.
+ */
 public class R2VMsg extends V2xMessage {
     private final String uniqueId;
     private final long timeStamp;
     private final long timestampLimit;
+    private final String rsuSource;
     private final String vehDestination;
     private final String nextHop;
     private final String order;
     private final List<String> forwardingTrail;
 
     public R2VMsg(MessageRouting routing, String uniqueId, long timeStamp, long timestampLimit,
-                  String vehDestination, String nextHop, String order, List<String> forwardingTrail) {
+                  String rsuSource, String vehDestination, String nextHop, String order, List<String> forwardingTrail) {
         super(routing);
         this.uniqueId = uniqueId;
         this.timeStamp = timeStamp;
         this.timestampLimit = timestampLimit;
+        this.rsuSource = rsuSource;
         this.vehDestination = vehDestination;
         this.nextHop = nextHop;
         this.order = order;
@@ -38,6 +44,7 @@ public class R2VMsg extends V2xMessage {
             dos.writeUTF(uniqueId);
             dos.writeLong(timeStamp);
             dos.writeLong(timestampLimit);
+            dos.writeUTF(rsuSource);
             dos.writeUTF(vehDestination);
             dos.writeUTF(nextHop);
             dos.writeUTF(order);
@@ -63,6 +70,10 @@ public class R2VMsg extends V2xMessage {
         return timestampLimit;
     }
 
+    public String getRsuSource() {
+        return rsuSource;
+    }
+
     public String getVehDestination() {
         return vehDestination;
     }
@@ -84,6 +95,7 @@ public class R2VMsg extends V2xMessage {
         return "R2V MESSAGE - UNIQUEID: " + uniqueId +
                " | TIME: " + timeStamp +
                " | TIMESTAMP_LIMIT: " + timestampLimit +
+               " | RSU_SOURCE: " + rsuSource +
                " | VEH_DESTINATION: " + vehDestination +
                " | NEXT_HOP: " + nextHop +
                " | ORDER: " + order +

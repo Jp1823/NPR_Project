@@ -29,11 +29,11 @@
   ],
   "vehicles": [
     {
-      "startingTime": "5 s",
+      "startingTime": "0s",
       "maxTime": "700 s",
-      "targetFlow": 1,
+      "targetFlow": 50,
       "spawningMode": "CONSTANT",
-      "maxNumberVehicles": 5,
+      "maxNumberVehicles": 50,
       "laneSelectionMode": "BEST",
       "departSpeed": "0.0 m/s",
       "departSpeedMode": "MAXIMUM",
@@ -51,13 +51,13 @@
       ]
     },
     {
-      "startingTime": "5 s",
+      "startingTime": "2s",
       "maxTime": "700 s",
-      "targetFlow": 1,
+      "targetFlow": 50,
       "spawningMode": "CONSTANT",
-      "maxNumberVehicles": 5,
+      "maxNumberVehicles": 50,
       "laneSelectionMode": "BEST",
-      "departSpeed": "0.0 m/s",
+      "departSpeed": "50.0 m/s",
       "departSpeedMode": "MAXIMUM",
       "types": [
         {
@@ -67,51 +67,7 @@
       ],
       "departConnectionIndex": 0,
       "pos": 0,
-      "route": "r_2",
-      "applications": [
-        "pt.uminho.npr.tutorial.VehApp"
-      ]
-    },
-    {
-      "startingTime": "5 s",
-      "maxTime": "700 s",
-      "targetFlow": 1,
-      "spawningMode": "CONSTANT",
-      "maxNumberVehicles": 5,
-      "laneSelectionMode": "BEST",
-      "departSpeed": "0.0 m/s",
-      "departSpeedMode": "MAXIMUM",
-      "types": [
-        {
-          "name": "Car",
-          "weight": 1.0
-        }
-      ],
-      "departConnectionIndex": 0,
-      "pos": 0,
-      "route": "r_1",
-      "applications": [
-        "pt.uminho.npr.tutorial.VehApp"
-      ]
-    },
-    {
-      "startingTime": "5 s",
-      "maxTime": "700 s",
-      "targetFlow": 1,
-      "spawningMode": "CONSTANT",
-      "maxNumberVehicles": 5,
-      "laneSelectionMode": "BEST",
-      "departSpeed": "0.0 m/s",
-      "departSpeedMode": "MAXIMUM",
-      "types": [
-        {
-          "name": "Car",
-          "weight": 1.0
-        }
-      ],
-      "departConnectionIndex": 0,
-      "pos": 0,
-      "route": "r_3",
+      "route": "r_0",
       "applications": [
         "pt.uminho.npr.tutorial.VehApp"
       ]
@@ -120,8 +76,8 @@
   "rsus": [
     {
       "position": {
-        "latitude": 52.454540,
-        "longitude": 13.306261
+        "latitude": 52.454223,
+        "longitude": 13.313477
       },
       "name": "RSU3",
       "applications": [ "pt.uminho.npr.tutorial.RsuApp" ]
@@ -136,8 +92,8 @@
     },
     {
       "position": { 
-        "latitude": 52.454544, 
-        "longitude": 13.306265 
+        "latitude": 52.454225, 
+        "longitude": 13.313479 
       },
       "name": "FOG1",
       "applications": [ "pt.uminho.npr.tutorial.FogApp" ]

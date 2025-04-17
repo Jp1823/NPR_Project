@@ -96,7 +96,7 @@ public class FogApp extends AbstractApplication<RoadSideUnitOperatingSystem>
         String order = "EMERGENCY_BRAKE";
         String messageType = "COMMAND";
         // SELECT VEHICLE DESTINATION - CURRENTLY FIXED AS VEH_2
-        String vehDest = "VEH_0";
+        String vehDest = "VEH_9";
         // FIXED RSU DESTINATION
         String rsuDest = "RSU_0";
         // GENERATE UNIQUE ID FOR DEBUG PURPOSES

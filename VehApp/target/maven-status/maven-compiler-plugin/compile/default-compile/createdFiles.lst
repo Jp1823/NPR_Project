@@ -7,5 +7,6 @@ pt\uminho\npr\tutorial\VehApp$VehicleGraph$NodeRecord.class
 pt\uminho\npr\tutorial\Messages\R2FMsg.class
 pt\uminho\npr\tutorial\Messages\F2RMsg.class
 pt\uminho\npr\tutorial\RsuApp$ExtendedNeighborRecord.class
+pt\uminho\npr\tutorial\Messages\DepthNeighMsg.class
 pt\uminho\npr\tutorial\Messages\V2RACK.class
 pt\uminho\npr\tutorial\RsuApp.class

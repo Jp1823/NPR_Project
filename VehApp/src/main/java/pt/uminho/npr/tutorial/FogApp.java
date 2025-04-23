@@ -55,22 +55,21 @@ public final class FogApp extends AbstractApplication<RoadSideUnitOperatingSyste
                 .distance(TX_RANGE_M)
                 .create()
         );
-        LOG_INFO("FOG APPLICATION STARTED AND AD-HOC MODULE ENABLED");
+        // LOG_INFO("FOG APPLICATION STARTED AND AD-HOC MODULE ENABLED");
         scheduleTick();
     }
 
     @Override
     public void onShutdown() {
-        LOG_INFO("FOG APPLICATION SHUTTING DOWN AND AD-HOC MODULE DISABLED");
+        // LOG_INFO("FOG APPLICATION SHUTTING DOWN AND AD-HOC MODULE DISABLED");
         printSeenIds();
         getOs().getAdHocModule().disable();
     }
 
     @Override
     public void processEvent(Event event) {
-        LOG_DEBUG("PROCESSING TICK EVENT: PURGING STATES AND GENERATING COMMANDS");
+        // LOG_DEBUG("PROCESSING TICK EVENT: PURGING STATES AND GENERATING COMMANDS");
         purgeVehicleStates();
-        printVehicleStates();
         generateCommands();
         scheduleTick();
     }
@@ -78,8 +77,6 @@ public final class FogApp extends AbstractApplication<RoadSideUnitOperatingSyste
     @Override
     public void onMessageReceived(ReceivedV2xMessage incoming) {
         V2xMessage msg = incoming.getMessage();
-        String type = msg.getClass().getSimpleName();
-        // LOG_DEBUG("MESSAGE RECEIVED OF TYPE: " + type);
 
         if (msg instanceof RsuToFogMessage rtf && seenRsuMessages.add(rtf.getUniqueId())) {
             // LOG_INFO("RECEIVED NEW RSU-TO-FOG MESSAGE ID: " + rtf.getUniqueId());
@@ -89,10 +86,12 @@ public final class FogApp extends AbstractApplication<RoadSideUnitOperatingSyste
             } else if (inner instanceof VehicleToRsuACK ack) {
                 handleAck(ack);
             } else {
-                LOG_DEBUG("IGNORED UNKNOWN INNER MESSAGE TYPE: " + inner.getClass().getSimpleName());
+                // LOG_DEBUG("IGNORED UNKNOWN INNER MESSAGE TYPE: " + inner.getClass().getSimpleName());
+                return;
             }
         } else {
-            LOG_DEBUG("IGNORED MESSAGE OR DUPLICATE MESSAGE TYPE: " + type);
+            // LOG_DEBUG("IGNORED MESSAGE OR DUPLICATE MESSAGE TYPE: " + type);
+            return;
         }
     }
 
@@ -102,26 +101,28 @@ public final class FogApp extends AbstractApplication<RoadSideUnitOperatingSyste
 
     private void storeVehicleState(VehicleToVehicle v2v) {
         vehicleStates.put(v2v.getSenderId().toUpperCase(Locale.ROOT), v2v);
-        LOG_INFO("STORED VEHICLE STATE FOR VEHICLE: " + v2v.getSenderId().toUpperCase(Locale.ROOT));
+        // LOG_INFO("STORED VEHICLE STATE FOR VEHICLE: " + v2v.getSenderId().toUpperCase(Locale.ROOT));
     }
 
     private void handleAck(VehicleToRsuACK ack) {
         if (seenAcks.add(ack.getUniqueId())) {
-            LOG_INFO("RECEIVED NEW VEHICLE ACK ID: " + ack.getUniqueId());
+            // LOG_INFO("RECEIVED NEW VEHICLE ACK ID: " + ack.getUniqueId());
+            return;
         } else {
-            LOG_DEBUG("DUPLICATE VEHICLE ACK IGNORED ID: " + ack.getUniqueId());
+            // LOG_DEBUG("DUPLICATE VEHICLE ACK IGNORED ID: " + ack.getUniqueId());
+            return;
         }
     }
 
     private void purgeVehicleStates() {
         long now = getOs().getSimulationTime();
-        int before = vehicleStates.size();
         vehicleStates.entrySet().removeIf(
             e -> now - e.getValue().getTimeStamp() > VEHICLE_STATE_TTL_MS
         );
-        LOG_DEBUG("PURGED VEHICLE STATES. BEFORE: " + before + ", AFTER: " + vehicleStates.size());
+        // LOG_DEBUG("PURGED VEHICLE STATES. BEFORE: " + before + ", AFTER: " + vehicleStates.size());
     }
 
+    /*
     private void printVehicleStates() {
         LOG_INFO("VEHICLE_STATES : SIZE = " + vehicleStates.size());
         vehicleStates.values().stream()
@@ -133,6 +134,7 @@ public final class FogApp extends AbstractApplication<RoadSideUnitOperatingSyste
                         " | TIMESTAMP: " + v2v.getTimeStamp());
             });
     }
+    */
 
     private void printSeenIds() {
         Map<String, Set<String>> collections = Map.of(

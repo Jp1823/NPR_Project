@@ -24,13 +24,20 @@ public final class RsuApp extends AbstractApplication<RoadSideUnitOperatingSyste
 
     private static final long   CLEAN_MS        = 1000 * TIME.MILLI_SECOND;
     private static final int    TX_POWER_DBM    = 23;
-    private static final double TX_RANGE_M      = 200.0;
+    private static final double TX_RANGE_M      = 150.0;
     private static final long   NEIGHBOR_TTL_MS = 1000 * TIME.MILLI_SECOND;
 
     private final Map<String, NodeRecord>  neighbors = new HashMap<>();
     private final Map<String, Set<String>> seenIds   = new HashMap<>();
+    private final Map<String,Integer> fairnessCount = new HashMap<>();
     private final AtomicInteger            seqToVeh  = new AtomicInteger();
     private final AtomicInteger            seqToFog  = new AtomicInteger();
+    
+    private static final double W_TWO_HOP     = 50.0;
+    private static final double W_PROXIMITY   = 30.0;
+    private static final double W_CONNECTIVITY= 10.0;
+    private static final double W_STABILITY   =  5.0;
+    private static final double W_FAIRNESS    =  5.0;
 
     @Override
     public void onStartup() {
@@ -47,15 +54,13 @@ public final class RsuApp extends AbstractApplication<RoadSideUnitOperatingSyste
 
     @Override
     public void onShutdown() {
-        printNeighborEntries();
-        printSeenIds();
+        printProcessedIds();
         getOs().getAdHocModule().disable();
     }
 
     @Override
     public void processEvent(Event e) {
         purgeNeighbors();
-        printNeighborEntries();
         scheduleCleanup();
     }
 
@@ -124,30 +129,43 @@ public final class RsuApp extends AbstractApplication<RoadSideUnitOperatingSyste
 
     private void handleFogCommand(FogToRsuMessage f2r) {
         String rsuId = getOs().getId().toUpperCase(Locale.ROOT);
-        if (!(f2r.getRsuTarget().equalsIgnoreCase(rsuId) || f2r.getRsuTarget().equalsIgnoreCase("ALL"))) {
+
+        if (!(f2r.getRsuTarget().equalsIgnoreCase(rsuId)
+              || f2r.getRsuTarget().equalsIgnoreCase("ALL"))) {
             return;
         }
-        String dst  = f2r.getVehicleTarget().toUpperCase(Locale.ROOT);
-        String next = neighbors.containsKey(dst) ? dst : selectNextHop(dst);
-        if (next == null) {
+    
+        String dst = f2r.getVehicleTarget().toUpperCase(Locale.ROOT);
+        NodeRecord rec = neighbors.get(dst);
+    
+        String nextHop = null;
+        if (rec != null && rec.isReachableToRsu()) {
+            // logInfo("DIRECT DELIVERY OF R2V TO " + dst);
+            nextHop = dst;
+        } else {
+            nextHop = selectNextHop(dst);
+        }
+    
+        if (nextHop == null) {
+            // logInfo("NO ROUTE OR DIRECT REACH FOR R2V TO " + dst);
             return;
         }
+    
         MessageRouting routing = newRouting();
-        List<String> initialTrail = List.of(getOs().getId().toUpperCase(Locale.ROOT));  
+        List<String> initialTrail = List.of(rsuId);
+    
         RsuToVehicleMessage rtv = new RsuToVehicleMessage(
             routing,
             "RTV-" + seqToVeh.getAndIncrement(),
             f2r.getTimestamp(),
             f2r.getExpiryTimestamp(),
-            getOs().getId().toUpperCase(Locale.ROOT),
+            rsuId,
             dst,
-            next,
+            nextHop,
             f2r.getCommand(),
             initialTrail
         );
-        logInfo("SENT RSU-TO-VEHICLE MESSAGE ID = " + rtv.getUniqueId()
-                + " | NEXT_HOP = " + next
-                + " | COMMAND = " + f2r.getCommand());
+    
         getOs().getAdHocModule().sendV2xMessage(rtv);
     }
 
@@ -159,42 +177,61 @@ public final class RsuApp extends AbstractApplication<RoadSideUnitOperatingSyste
     }
 
     private String selectNextHop(String dst) {
-        String best = null;
-        int bestScore = Integer.MIN_VALUE;
-        for (Map.Entry<String, NodeRecord> e : neighbors.entrySet()) {
-            String cand = e.getKey();
-            int hops = hopCount(cand, dst);
-            if (hops == Integer.MAX_VALUE) continue;
-            int score = e.getValue().getNeighbourIdentifiers().size() - hops;
+        List<String> direct = neighbors.entrySet().stream()
+            .filter(e -> e.getValue().isReachableToRsu())
+            .map(Map.Entry::getKey)
+            .collect(Collectors.toList());
+        if (direct.isEmpty()) return null;
+    
+        Set<String> twoHop = direct.stream()
+            .filter(n -> neighbors.get(n).getReachableNeighbors().contains(dst))
+            .collect(Collectors.toSet());
+    
+        List<String> candidates = twoHop.isEmpty() ? direct : new ArrayList<>(twoHop);
+
+        double maxDegree     = candidates.stream()
+            .mapToInt(n -> neighbors.get(n).getReachableNeighbors().size())
+            .max().orElse(1);
+        int maxFairness      = fairnessCount.values().stream().mapToInt(i -> i).max().orElse(1);
+        long now             = getOs().getSimulationTime();
+
+        double maxStability  = candidates.stream()
+            .mapToDouble(n -> now - neighbors.get(n).getCreationTimestamp())
+            .max().orElse(1.0);
+    
+        String best     = null;
+        double bestScore= Double.NEGATIVE_INFINITY;
+        for (String cand : candidates) {
+            NodeRecord rec = neighbors.get(cand);
+    
+            double scoreTwoHop = twoHop.contains(cand) ? 1.0 : 0.0;
+
+            double scoreProx   = 1.0 / rec.getDistanceFromVehicle();
+
+            double scoreConn   = rec.getReachableNeighbors().size() / maxDegree;
+
+            double age         = now - rec.getCreationTimestamp();
+            double scoreStab   = age / maxStability;
+
+            int usedTimes      = fairnessCount.getOrDefault(cand, 0);
+            double scoreFair   = 1.0 - (usedTimes / (double) maxFairness);
+    
+            double score = W_TWO_HOP      * scoreTwoHop
+                         + W_PROXIMITY    * scoreProx
+                         + W_CONNECTIVITY * scoreConn
+                         + W_STABILITY    * scoreStab
+                         + W_FAIRNESS     * scoreFair;
+    
             if (score > bestScore) {
-                best = cand;
                 bestScore = score;
+                best      = cand;
             }
         }
+    
+        fairnessCount.merge(best, 1, Integer::sum);
         return best;
     }
-
-    private int hopCount(String start, String dst) {
-        if (start.equalsIgnoreCase(dst)) return 0;
-        Queue<String> q = new LinkedList<>();
-        Map<String,Integer> d = new HashMap<>();
-        q.offer(start); d.put(start, 0);
-        while (!q.isEmpty()) {
-            String cur = q.poll();
-            int hops = d.get(cur);
-            if (cur.equalsIgnoreCase(dst)) return hops;
-            NodeRecord rec = neighbors.get(cur);
-            if (rec != null) {
-                for (String n : rec.getNeighbourIdentifiers()) {
-                    if (d.putIfAbsent(n, hops + 1) == null) {
-                        q.offer(n);
-                    }
-                }
-            }
-        }
-        return Integer.MAX_VALUE;
-    }
-
+    
     private void purgeNeighbors() {
         long now = getOs().getSimulationTime();
         neighbors.entrySet().removeIf(e ->
@@ -230,6 +267,7 @@ public final class RsuApp extends AbstractApplication<RoadSideUnitOperatingSyste
         getOs().getEventManager().addEvent(next, this);
     }
 
+    /*
     private void printNeighborEntries() {
         logInfo("NEIGHBOR_GRAPH : SIZE = " + neighbors.size());
         neighbors.keySet().stream().sorted().forEach(key -> {
@@ -242,14 +280,31 @@ public final class RsuApp extends AbstractApplication<RoadSideUnitOperatingSyste
                     " | CREATION_TIMESTAMP: " + rec.getCreationTimestamp());
         });
     }
-
-    private void printSeenIds() {
-        logInfo("SEEN_IDS_SUMMARY : TYPES = " + seenIds.keySet().size());
+    */
+    
+    private void printProcessedIds() {
         seenIds.keySet().stream().sorted().forEach(type -> {
             Set<String> ids = seenIds.get(type);
-            logInfo("SEEN_IDS_FOR_TYPE : TYPE = " + type + " | COUNT = " + ids.size());
-            ids.stream().sorted().forEach(id ->
-                logInfo("SEEN_ID : TYPE = " + type + " | UNIQUE_ID = " + id)
+            String upType = type.toUpperCase();
+            logInfo("PROCESSED_" + upType + "_IDS : COUNT = " + ids.size());
+            ids.stream().sorted((a, b) -> {
+                String[] pa = a.split("-");
+                String[] pb = b.split("-");
+                int cmp = pa.length > 1 && pb.length > 1
+                          ? pa[1].compareTo(pb[1])
+                          : a.compareTo(b);
+                if (cmp != 0) return cmp;
+                if (pa.length > 2 && pb.length > 2) {
+                    try {
+                        return Integer.compare(
+                            Integer.parseInt(pa[2]),
+                            Integer.parseInt(pb[2])
+                        );
+                    } catch (NumberFormatException ignored) {}
+                }
+                return a.compareTo(b);
+            }).forEach(id ->
+                logInfo("PROCESSED_" + upType + "_ID : " + id)
             );
         });
     }

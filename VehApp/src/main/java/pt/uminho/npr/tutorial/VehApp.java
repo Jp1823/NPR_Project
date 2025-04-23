@@ -32,7 +32,7 @@ public final class VehApp extends AbstractApplication<VehicleOperatingSystem>
     private static final long   CLEAN_THRESHOLD_MS = 1000 * TIME.MILLI_SECOND;
     private static final int    TX_POWER_DBM       = 23;
     private static final double TX_RANGE_M         = 150.0;
-    private static final double RSU_RANGE_M        = 100.0;
+    private static final double RSU_RANGE_M        = 150.0;
     private static final int    INITIAL_TTL        = 10;
 
     private final Map<String, GeoPoint>   staticRsus    = new HashMap<>();
@@ -49,7 +49,7 @@ public final class VehApp extends AbstractApplication<VehicleOperatingSystem>
     // private long lastPrintTime = 0;
 
     private void logInfo(String msg)  { getLog().infoSimTime(this, "[" + id() + "] [INFO]  " + msg); }
-    private void logDebug(String msg) { getLog().debugSimTime(this, "[" + id() + "] [DEBUG] " + msg); }
+    // private void logDebug(String msg) { getLog().debugSimTime(this, "[" + id() + "] [DEBUG] " + msg); }
     private String id()               { return getOs().getId().toUpperCase(Locale.ROOT); }
 
     @Override
@@ -70,7 +70,6 @@ public final class VehApp extends AbstractApplication<VehicleOperatingSystem>
     @Override
     public void onShutdown() {
         logInfo("VEHICLE APP TERMINATED");
-        printNeighborGraph();
         printProcessedIds();
         getOs().getAdHocModule().disable();
     }
@@ -83,7 +82,6 @@ public final class VehApp extends AbstractApplication<VehicleOperatingSystem>
         if (!ready) {
             ready = true;
         }
-        printNeighborGraph();
     }
 
     @Override
@@ -157,15 +155,15 @@ public final class VehApp extends AbstractApplication<VehicleOperatingSystem>
                     " | GRAPH_SIZE = "+ v2v.getNeighborGraph().size());
             */
             handleV2V(v2v);
-
         } else if (msg instanceof RsuToVehicleMessage rtv) {
+            /*
             logInfo("RSU_TO_VEHICLE_MESSAGE : UNIQUE_ID = " + rtv.getUniqueId() +
                     " | RSU_SOURCE = "    + rtv.getRsuSource() +
                     " | VEHICLE_TARGET = "+ rtv.getVehicleTarget() +
                     " | NEXT_HOP = "      + rtv.getNextHop() +
                     " | COMMAND = "       + rtv.getCommand());
+            */
             handleR2V(rtv);
-
         } else if (msg instanceof VehicleToRsuACK ack) {
             /*
             logInfo("VEHICLE_TO_RSU_ACK : UNIQUE_ID = " + ack.getUniqueId() +
@@ -183,8 +181,8 @@ public final class VehApp extends AbstractApplication<VehicleOperatingSystem>
         GeoPoint senderPos = v2v.getPosition();
 
         double distSelf   = distance(getOs().getPosition(), senderPos);
-        boolean reachable = distSelf <= RSU_RANGE_M;
         double distToRsu  = computeRsuDistance(senderPos);
+        boolean reachableToRsu = distToRsu <= RSU_RANGE_M;
 
         List<String> reachableNeighbors = new ArrayList<>(v2v.getNeighborGraph().keySet());
 
@@ -198,7 +196,7 @@ public final class VehApp extends AbstractApplication<VehicleOperatingSystem>
         NodeRecord recSelf = new NodeRecord(
             distSelf,
             distToRsu,
-            reachable,
+            reachableToRsu,
             reachableNeighbors,
             directNeighbors,
             v2v.getTimeStamp()
@@ -233,31 +231,52 @@ public final class VehApp extends AbstractApplication<VehicleOperatingSystem>
     }
 
     private void handleR2V(RsuToVehicleMessage rtv) {
+
         String me = id();
         if (rtv.getForwardingTrail().contains(me)) {
-            /*
-            logDebug("IGNORED RSU_TO_VEHICLE_MESSAGE : LOOP_DETECTED"); 
-            */
             return;
         }
         if (!rtv.getNextHop().equalsIgnoreCase(me)) {
-            /*
-            logDebug("IGNORED RSU_TO_VEHICLE_MESSAGE : WRONG_NEXT_HOP"); 
-            */
             return;
         }
+
         if (rtv.getVehicleTarget().equalsIgnoreCase(me)) {
-            logInfo("FINAL TARGET REACHED | SENDING ACK : UNIQUE_ID = " + rtv.getUniqueId());
-            sendAck(rtv); return;
+            // logInfo("FINAL TARGET REACHED | SENDING ACK : UNIQUE_ID = " + rtv.getUniqueId());
+            sendAck(rtv);
+            return;
         }
-        String dst  = rtv.getVehicleTarget().toUpperCase(Locale.ROOT);
+    
+        String dst = rtv.getVehicleTarget().toUpperCase(Locale.ROOT);
+    
+        NodeRecord rec = neighborGraph.get(dst);
+        if (rec != null && rec.getDistanceFromVehicle() <= TX_RANGE_M) {
+            // logInfo("DIRECT DELIVERY TO DESTINATION : " + dst);
+            List<String> trail = new ArrayList<>(rtv.getForwardingTrail());
+            trail.add(me);
+            RsuToVehicleMessage direct = new RsuToVehicleMessage(
+                newRouting(),
+                rtv.getUniqueId(),
+                rtv.getTimestamp(),
+                rtv.getExpiryTimestamp(),
+                rtv.getRsuSource(),
+                dst,
+                dst,
+                rtv.getCommand(),
+                trail
+            );
+            getOs().getAdHocModule().sendV2xMessage(direct);
+            return;
+        }
+    
         String next = chooseNextHop(dst);
         if (next == null) {
-            logDebug("NO ROUTE TO FORWARD RSU_TO_VEHICLE_MESSAGE : DEST = " + dst); 
+            // logDebug("NO ROUTE TO FORWARD RSU_TO_VEHICLE_MESSAGE : DEST = " + dst);
             return;
         }
+        /*
         logInfo("FORWARDING RSU_TO_VEHICLE_MESSAGE : UNIQUE_ID = " + rtv.getUniqueId() +
                 " | NEXT_HOP = " + next);
+        */
         List<String> trail = new ArrayList<>(rtv.getForwardingTrail());
         trail.add(me);
         RsuToVehicleMessage fwd = new RsuToVehicleMessage(
@@ -275,42 +294,75 @@ public final class VehApp extends AbstractApplication<VehicleOperatingSystem>
     }
 
     private void sendAck(RsuToVehicleMessage rtv) {
-        long now    = getOs().getSimulationTime();
+        long now = getOs().getSimulationTime();
         String uid = "ACK-" + id() + "-" + ackSeq.getAndIncrement();
-        List<String> path = new ArrayList<>(rtv.getForwardingTrail());
-        path.add(id());
-        Collections.reverse(path);
-        String next = path.remove(0);
+    
+        List<String> backPath = new ArrayList<>(rtv.getForwardingTrail());
+        Collections.reverse(backPath);
+    
+        String nextHop = backPath.get(0);
+    
+        List<String> checklist = backPath.size() > 1
+            ? new ArrayList<>(backPath.subList(1, backPath.size()))
+            : Collections.emptyList();
+        /*
         logInfo("SENDING VEHICLE_TO_RSU_ACK : UNIQUE_ID = " + uid +
                 " | ORIGINAL_ID = " + rtv.getUniqueId() +
-                " | NEXT_HOP = " + next);
+                " | NEXT_HOP = " + nextHop);
+        */
         VehicleToRsuACK ack = new VehicleToRsuACK(
             newRouting(),
             uid,
             rtv.getUniqueId(),
             now,
-            now + 10_000,
+            now + (10000 * TIME.MILLI_SECOND),
             id(),
             rtv.getRsuSource(),
-            next,
-            path
+            nextHop,
+            checklist
         );
+        logInfo(ack.toString());
         processedAck.add(uid);
         getOs().getAdHocModule().sendV2xMessage(ack);
     }
 
     private void forwardAck(VehicleToRsuACK ack) {
-        if (!ack.getNextHop().equalsIgnoreCase(id())) {
-            logDebug("IGNORED VEHICLE_TO_RSU_ACK : WRONG_NEXT_HOP"); return;
-        }
+        String me = id();
+    
         if (!processedAck.add(ack.getUniqueId())) {
-            logDebug("IGNORED VEHICLE_TO_RSU_ACK : DUPLICATE"); return;
+            // logDebug("IGNORED VEHICLE_TO_RSU_ACK : DUPLICATE");
+            return;
         }
+    
+        if (!ack.getNextHop().equalsIgnoreCase(me)) {
+            // logDebug("IGNORED VEHICLE_TO_RSU_ACK : WRONG_NEXT_HOP");
+            return;
+        }
+    
+        double distToRsu = computeRsuDistance(getOs().getPosition());
+        if (distToRsu <= RSU_RANGE_M) {
+            // logInfo("DIRECT ACK DELIVERY TO RSU : UNIQUE_ID = " + ack.getUniqueId());
+            VehicleToRsuACK direct = new VehicleToRsuACK(
+                newRouting(),
+                ack.getUniqueId(),
+                ack.getOriginalMessageId(),
+                ack.getTimestamp(),
+                ack.getExpiryTimestamp(),
+                ack.getVehicleIdentifier(),
+                ack.getRsuDestination(),
+                ack.getRsuDestination(),
+                Collections.emptyList()
+            );
+            getOs().getAdHocModule().sendV2xMessage(direct);
+            return;
+        }
+    
         List<String> checklist = new ArrayList<>(ack.getChecklist());
-        checklist.remove(0);
-        String next = checklist.isEmpty() ? ack.getRsuDestination() : checklist.get(0);
-        logInfo("FORWARDING VEHICLE_TO_RSU_ACK : UNIQUE_ID = " + ack.getUniqueId() +
-                " | NEXT_HOP = " + next);
+        String nextHop = checklist.remove(0);
+        /*
+        logInfo("FORWARDING VEHICLE_TO_RSU_ACK : UNIQUE_ID = " + ack.getUniqueId()
+              + " | NEXT_HOP = " + nextHop);
+        */
         VehicleToRsuACK fwd = new VehicleToRsuACK(
             newRouting(),
             ack.getUniqueId(),
@@ -319,9 +371,10 @@ public final class VehApp extends AbstractApplication<VehicleOperatingSystem>
             ack.getExpiryTimestamp(),
             ack.getVehicleIdentifier(),
             ack.getRsuDestination(),
-            next,
+            nextHop,
             checklist
         );
+        processedAck.add(ack.getUniqueId());
         getOs().getAdHocModule().sendV2xMessage(fwd);
     }
 
@@ -333,35 +386,67 @@ public final class VehApp extends AbstractApplication<VehicleOperatingSystem>
     }
 
     private String chooseNextHop(String dst) {
-        return neighborGraph.keySet().stream()
-            .min(Comparator.comparingInt(a -> hopCount(a, dst)))
+        String me = id();
+    
+        List<String> direct = neighborGraph.entrySet().stream()
+            .filter(e -> e.getValue().getDistanceFromVehicle() <= TX_RANGE_M)
+            .map(Map.Entry::getKey)
+            .filter(n -> !n.equalsIgnoreCase(me))
+            .collect(Collectors.toList());
+        if (direct.isEmpty()) return null;
+
+        List<String> twoHop = direct.stream()
+            .filter(n -> neighborGraph.get(n).getReachableNeighbors().contains(dst))
+            .collect(Collectors.toList());
+        if (!twoHop.isEmpty()) {
+
+            return twoHop.stream()
+                .min(Comparator.comparingDouble(n -> neighborGraph.get(n).getDistanceFromVehicle()))
+                .get();
+        }
+    
+        String bestByHops = direct.stream()
+            .min(Comparator.comparingInt(n -> hopCountRestricted(n, dst, direct)))
+            .orElse(null);
+        if (bestByHops != null
+            && hopCountRestricted(bestByHops, dst, direct) < Integer.MAX_VALUE) {
+            return bestByHops;
+        }
+
+        return direct.stream()
+            .max(Comparator.comparingInt(n -> neighborGraph.get(n).getReachableNeighbors().size()))
             .orElse(null);
     }
-
-    private int hopCount(String start, String dst) {
+    
+    private int hopCountRestricted(String start, String dst, List<String> directCandidates) {
         if (start.equalsIgnoreCase(dst)) return 0;
         Queue<String> queue = new LinkedList<>();
-        Map<String, Integer> distMap = new HashMap<>();
+        Map<String,Integer> dist = new HashMap<>();
         queue.offer(start);
-        distMap.put(start, 0);
-
+        dist.put(start, 0);
+    
+        Set<String> allowed = new HashSet<>(directCandidates);
+        allowed.add(dst);
+    
         while (!queue.isEmpty()) {
-            String current = queue.poll();
-            int hops = distMap.get(current);
-            if (current.equalsIgnoreCase(dst)) return hops;
-
-            NodeRecord rec = neighborGraph.get(current);
-            if (rec != null) {
-                for (String neighbor : rec.getNeighbourIdentifiers()) {
-                    if (distMap.putIfAbsent(neighbor, hops + 1) == null) {
-                        queue.offer(neighbor);
-                    }
+            String cur = queue.poll();
+            int hops = dist.get(cur);
+            if (cur.equalsIgnoreCase(dst)) return hops;
+    
+            NodeRecord rec = neighborGraph.get(cur);
+            if (rec == null) continue;
+    
+            for (String nb : rec.getReachableNeighbors()) {
+                if (!allowed.contains(nb)) continue;
+                if (dist.putIfAbsent(nb, hops + 1) == null) {
+                    queue.offer(nb);
                 }
             }
         }
         return Integer.MAX_VALUE;
     }
-
+    
+    /*
     private void printNeighborGraph() {
         logInfo("NEIGHBOR_GRAPH : SIZE = " + neighborGraph.size());
         neighborGraph.keySet().stream().sorted().forEach(key -> {
@@ -375,6 +460,7 @@ public final class VehApp extends AbstractApplication<VehicleOperatingSystem>
                     " | CREATION_TIMESTAMP: " + rec.getCreationTimestamp());
         });
     }
+    */
 
     private void printProcessedIds() {
         logInfo("PROCESSED_V2V_IDS : COUNT = " + processedV2V.size());

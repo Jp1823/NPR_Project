@@ -31,9 +31,9 @@
     {
       "startingTime": "0s",
       "maxTime": "700 s",
-      "targetFlow": 50,
+      "targetFlow": 30,
       "spawningMode": "CONSTANT",
-      "maxNumberVehicles": 50,
+      "maxNumberVehicles": 30,
       "laneSelectionMode": "BEST",
       "departSpeed": "0.0 m/s",
       "departSpeedMode": "MAXIMUM",
@@ -51,11 +51,11 @@
       ]
     },
     {
-      "startingTime": "2s",
+      "startingTime": "0.2s",
       "maxTime": "700 s",
-      "targetFlow": 50,
+      "targetFlow": 30,
       "spawningMode": "CONSTANT",
-      "maxNumberVehicles": 50,
+      "maxNumberVehicles": 30,
       "laneSelectionMode": "BEST",
       "departSpeed": "50.0 m/s",
       "departSpeedMode": "MAXIMUM",

@@ -129,9 +129,10 @@ public final class RsuApp extends AbstractApplication<RoadSideUnitOperatingSyste
 
     private void handleFogCommand(FogToRsuMessage f2r) {
         String rsuId = getOs().getId().toUpperCase(Locale.ROOT);
-
+    
         if (!(f2r.getRsuTarget().equalsIgnoreCase(rsuId)
               || f2r.getRsuTarget().equalsIgnoreCase("ALL"))) {
+            // LOG_INFO("FOG MESSAGE NOT ADDRESSED TO THIS RSU: IGNORING");
             return;
         }
     
@@ -140,19 +141,21 @@ public final class RsuApp extends AbstractApplication<RoadSideUnitOperatingSyste
     
         String nextHop = null;
         if (rec != null && rec.isReachableToRsu()) {
-            // logInfo("DIRECT DELIVERY OF R2V TO " + dst);
+            // LOG_INFO("DIRECT DELIVERY TO " + dst);
             nextHop = dst;
         } else {
             nextHop = selectNextHop(dst);
         }
     
         if (nextHop == null) {
-            // logInfo("NO ROUTE OR DIRECT REACH FOR R2V TO " + dst);
+            // LOG_INFO("NO ROUTE OR DIRECT REACH FOR " + dst);
             return;
         }
     
         MessageRouting routing = newRouting();
         List<String> initialTrail = List.of(rsuId);
+    
+        FogEventMessage event = f2r.getCommandEvent();
     
         RsuToVehicleMessage rtv = new RsuToVehicleMessage(
             routing,
@@ -162,12 +165,13 @@ public final class RsuApp extends AbstractApplication<RoadSideUnitOperatingSyste
             rsuId,
             dst,
             nextHop,
-            f2r.getCommand(),
+            event,
             initialTrail
         );
     
         getOs().getAdHocModule().sendV2xMessage(rtv);
-    }
+        logInfo("FORWARDED EVENT " + event.getUniqueId() + " TO " + dst + " VIA " + nextHop);
+    }    
 
     private MessageRouting newRouting() {
         return getOs().getAdHocModule()

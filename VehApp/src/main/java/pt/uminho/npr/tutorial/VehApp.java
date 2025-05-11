@@ -12,6 +12,7 @@ import org.eclipse.mosaic.fed.application.ambassador.simulation.communication.Ca
 import org.eclipse.mosaic.fed.application.ambassador.simulation.communication.ReceivedAcknowledgement;
 import org.eclipse.mosaic.fed.application.ambassador.simulation.communication.ReceivedV2xMessage;
 import org.eclipse.mosaic.interactions.communication.V2xMessageTransmission;
+import org.eclipse.mosaic.interactions.vehicle.VehicleLaneChange.VehicleLaneChangeMode;
 import org.eclipse.mosaic.lib.enums.AdHocChannel;
 import org.eclipse.mosaic.lib.geo.GeoPoint;
 import org.eclipse.mosaic.lib.objects.v2x.MessageRouting;
@@ -34,6 +35,7 @@ public final class VehApp extends AbstractApplication<VehicleOperatingSystem>
     private static final double TX_RANGE_M         = 150.0;
     private static final double RSU_RANGE_M        = 150.0;
     private static final int    INITIAL_TTL        = 10;
+    private static final long EVENT_DURATION_NS = 5_000 * TIME.MILLI_SECOND;
 
     private final Map<String, GeoPoint>   staticRsus    = new HashMap<>();
     private final Map<String, NodeRecord> neighborGraph = new HashMap<>();
@@ -47,6 +49,9 @@ public final class VehApp extends AbstractApplication<VehicleOperatingSystem>
     private boolean ready = false;
     private double  heading, speed;
     // private long lastPrintTime = 0;
+
+    private volatile boolean pendingBrake = false;
+    private volatile boolean pendingLaneChange = false;
 
     private void logInfo(String msg)  { getLog().infoSimTime(this, "[" + id() + "] [INFO]  " + msg); }
     // private void logDebug(String msg) { getLog().debugSimTime(this, "[" + id() + "] [DEBUG] " + msg); }
@@ -74,13 +79,23 @@ public final class VehApp extends AbstractApplication<VehicleOperatingSystem>
         getOs().getAdHocModule().disable();
     }
 
-    @Override
     public void onVehicleUpdated(@Nullable org.eclipse.mosaic.lib.objects.vehicle.VehicleData prev,
-                                 @Nonnull org.eclipse.mosaic.lib.objects.vehicle.VehicleData cur) {
+                             @Nonnull org.eclipse.mosaic.lib.objects.vehicle.VehicleData cur) {
         heading = cur.getHeading().doubleValue();
         speed   = cur.getSpeed();
         if (!ready) {
             ready = true;
+        }
+
+        if (pendingBrake) {
+            logInfo("ACCIDENT EVENT RECEIVED: APPLYING EMERGENCY BRAKE");
+            getOs().changeSpeedWithInterval(0.0, EVENT_DURATION_NS);
+            pendingBrake = false;
+        }
+        if (pendingLaneChange) {
+            logInfo("LANE CLOSURE EVENT RECEIVED: INITIATING LANE CHANGE");
+            getOs().changeLane(VehicleLaneChangeMode.TO_RIGHT, EVENT_DURATION_NS);
+            pendingLaneChange = false;
         }
     }
 
@@ -242,6 +257,19 @@ public final class VehApp extends AbstractApplication<VehicleOperatingSystem>
 
         if (rtv.getVehicleTarget().equalsIgnoreCase(me)) {
             // logInfo("FINAL TARGET REACHED | SENDING ACK : UNIQUE_ID = " + rtv.getUniqueId());
+            FogEventMessage ev = rtv.getCommandEvent();
+            switch (ev.getEventType()) {
+                case "ACCIDENT":
+                    // logInfo("ACCIDENT EVENT RECEIVED: SCHEDULING EMERGENCY BRAKE");
+                    pendingBrake = true;
+                    break;
+                case "LANE_CLOSURE":
+                    // logInfo("LANE_CLOSURE EVENT RECEIVED: SCHEDULING LANE CHANGE");
+                    pendingLaneChange = true;
+                    break;
+                default:
+                    // logInfo("UNKNOWN EVENT TYPE: " + ev.getEventType());
+            }
             sendAck(rtv);
             return;
         }
@@ -261,7 +289,7 @@ public final class VehApp extends AbstractApplication<VehicleOperatingSystem>
                 rtv.getRsuSource(),
                 dst,
                 dst,
-                rtv.getCommand(),
+                rtv.getCommandEvent(),
                 trail
             );
             getOs().getAdHocModule().sendV2xMessage(direct);
@@ -287,7 +315,7 @@ public final class VehApp extends AbstractApplication<VehicleOperatingSystem>
             rtv.getRsuSource(),
             dst,
             next,
-            rtv.getCommand(),
+            rtv.getCommandEvent(),
             trail
         );
         getOs().getAdHocModule().sendV2xMessage(fwd);

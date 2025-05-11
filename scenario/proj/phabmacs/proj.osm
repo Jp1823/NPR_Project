@@ -1,0 +1,884 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<osm version='0.6' generator='MOSAIC OSM-Export'>
+	<node id="J21" lat="52.446623" lon="13.297047" version="1"/>
+	<node id="J20" lat="52.448547" lon="13.305802" version="1"/>
+	<node id="J23" lat="52.447543" lon="13.298483" version="1"/>
+	<node id="E0" lat="52.449446" lon="13.305767" version="1"/>
+	<node id="J22" lat="52.446644" lon="13.298517" version="1"/>
+	<node id="E1" lat="52.450345" lon="13.305733" version="1"/>
+	<node id="J25" lat="52.447564" lon="13.299953" version="1"/>
+	<node id="E2" lat="52.451243" lon="13.305698" version="1"/>
+	<node id="J24" lat="52.448442" lon="13.298448" version="1"/>
+	<node id="E3" lat="52.452142" lon="13.305664" version="1"/>
+	<node id="J27" lat="52.448526" lon="13.304331" version="1"/>
+	<node id="A0" lat="52.449362" lon="13.299884" version="1"/>
+	<node id="E4" lat="52.453040" lon="13.305629" version="1"/>
+	<node id="J26" lat="52.447585" lon="13.301424" version="1"/>
+	<node id="A1" lat="52.450260" lon="13.299850" version="1"/>
+	<node id="J29" lat="52.448505" lon="13.302860" version="1"/>
+	<node id="A2" lat="52.451159" lon="13.299815" version="1"/>
+	<node id="J28" lat="52.448463" lon="13.299919" version="1"/>
+	<node id="A3" lat="52.452057" lon="13.299780" version="1"/>
+	<node id="A4" lat="52.452956" lon="13.299746" version="1"/>
+	<node id="J0" lat="52.449340" lon="13.298413" version="1"/>
+	<node id="J30" lat="52.448484" lon="13.301389" version="1"/>
+	<node id="J1" lat="52.452015" lon="13.296839" version="1"/>
+	<node id="J2" lat="52.451138" lon="13.298344" version="1"/>
+	<node id="J3" lat="52.450239" lon="13.298379" version="1"/>
+	<node id="J31" lat="52.451116" lon="13.296873" version="1"/>
+	<node id="J4" lat="52.447522" lon="13.297012" version="1"/>
+	<node id="J5" lat="52.449319" lon="13.296943" version="1"/>
+	<node id="J6" lat="52.449298" lon="13.295472" version="1"/>
+	<node id="J7" lat="52.451095" lon="13.295402" version="1"/>
+	<node id="B0" lat="52.449383" lon="13.301355" version="1"/>
+	<node id="J8" lat="52.450197" lon="13.295437" version="1"/>
+	<node id="B1" lat="52.450281" lon="13.301320" version="1"/>
+	<node id="J9" lat="52.451074" lon="13.293932" version="1"/>
+	<node id="B2" lat="52.451180" lon="13.301286" version="1"/>
+	<node id="B3" lat="52.452079" lon="13.301251" version="1"/>
+	<node id="B4" lat="52.452977" lon="13.301217" version="1"/>
+	<node id="C0" lat="52.449404" lon="13.302826" version="1"/>
+	<node id="C1" lat="52.450302" lon="13.302791" version="1"/>
+	<node id="C2" lat="52.451201" lon="13.302757" version="1"/>
+	<node id="C3" lat="52.452100" lon="13.302722" version="1"/>
+	<node id="C4" lat="52.452998" lon="13.302687" version="1"/>
+	<node id="J10" lat="52.448378" lon="13.294036" version="1"/>
+	<node id="J12" lat="52.449256" lon="13.292530" version="1"/>
+	<node id="J11" lat="52.450175" lon="13.293966" version="1"/>
+	<node id="D0" lat="52.449425" lon="13.304296" version="1"/>
+	<node id="J14" lat="52.449277" lon="13.294001" version="1"/>
+	<node id="D1" lat="52.450324" lon="13.304262" version="1"/>
+	<node id="J13" lat="52.448399" lon="13.295506" version="1"/>
+	<node id="D2" lat="52.451222" lon="13.304227" version="1"/>
+	<node id="J16" lat="52.446581" lon="13.294105" version="1"/>
+	<node id="D3" lat="52.452121" lon="13.304193" version="1"/>
+	<node id="J15" lat="52.448357" lon="13.292565" version="1"/>
+	<node id="D4" lat="52.453019" lon="13.304158" version="1"/>
+	<node id="J18" lat="52.447501" lon="13.295541" version="1"/>
+	<node id="J17" lat="52.447480" lon="13.294070" version="1"/>
+	<node id="J19" lat="52.445703" lon="13.295611" version="1"/>
+	<way id="-E30" version="1">
+		<nd ref="J19" version="1"/>
+		<nd ref="J16" version="1"/>
+	</way>
+	<way id="A1A0" version="1">
+		<nd ref="A1" version="1"/>
+		<nd ref="A0" version="1"/>
+	</way>
+	<way id="-E32" version="1">
+		<nd ref="J21" version="1"/>
+		<nd ref="J18" version="1"/>
+	</way>
+	<way id="-E38" version="1">
+		<nd ref="J25" version="1"/>
+		<nd ref="J23" version="1"/>
+	</way>
+	<way id="-E37" version="1">
+		<nd ref="E0" version="1"/>
+		<nd ref="J20" version="1"/>
+	</way>
+	<way id="-E39" version="1">
+		<nd ref="J26" version="1"/>
+		<nd ref="J25" version="1"/>
+	</way>
+	<way id="-E34" version="1">
+		<nd ref="J23" version="1"/>
+		<nd ref="J22" version="1"/>
+	</way>
+	<way id="-E33" version="1">
+		<nd ref="J22" version="1"/>
+		<nd ref="J21" version="1"/>
+	</way>
+	<way id="-E36" version="1">
+		<nd ref="J0" version="1"/>
+		<nd ref="J24" version="1"/>
+	</way>
+	<way id="-E35" version="1">
+		<nd ref="J24" version="1"/>
+		<nd ref="J23" version="1"/>
+	</way>
+	<way id="E0D0" version="1">
+		<nd ref="E0" version="1"/>
+		<nd ref="D0" version="1"/>
+	</way>
+	<way id="B3A3" version="1">
+		<nd ref="B3" version="1"/>
+		<nd ref="A3" version="1"/>
+	</way>
+	<way id="B4C4" version="1">
+		<nd ref="B4" version="1"/>
+		<nd ref="C4" version="1"/>
+	</way>
+	<way id="A2B2" version="1">
+		<nd ref="A2" version="1"/>
+		<nd ref="B2" version="1"/>
+	</way>
+	<way id="-E41" version="1">
+		<nd ref="J20" version="1"/>
+		<nd ref="J27" version="1"/>
+	</way>
+	<way id="-E40" version="1">
+		<nd ref="J27" version="1"/>
+		<nd ref="J26" version="1"/>
+	</way>
+	<way id="A1B1" version="1">
+		<nd ref="A1" version="1"/>
+		<nd ref="B1" version="1"/>
+	</way>
+	<way id="-E43" version="1">
+		<nd ref="J23" version="1"/>
+		<nd ref="A0" version="1"/>
+	</way>
+	<way id="-E42" version="1">
+		<nd ref="J28" version="1"/>
+		<nd ref="D0" version="1"/>
+	</way>
+	<way id="-E49" version="1">
+		<nd ref="J29" version="1"/>
+		<nd ref="J27" version="1"/>
+	</way>
+	<way id="-E48" version="1">
+		<nd ref="D0" version="1"/>
+		<nd ref="J20" version="1"/>
+	</way>
+	<way id="-E45" version="1">
+		<nd ref="J25" version="1"/>
+		<nd ref="J28" version="1"/>
+	</way>
+	<way id="-E44" version="1">
+		<nd ref="J28" version="1"/>
+		<nd ref="J24" version="1"/>
+	</way>
+	<way id="-E47" version="1">
+		<nd ref="J27" version="1"/>
+		<nd ref="C0" version="1"/>
+	</way>
+	<way id="-E46" version="1">
+		<nd ref="J29" version="1"/>
+		<nd ref="A0" version="1"/>
+	</way>
+	<way id="E1E0" version="1">
+		<nd ref="E1" version="1"/>
+		<nd ref="E0" version="1"/>
+	</way>
+	<way id="E1E2" version="1">
+		<nd ref="E1" version="1"/>
+		<nd ref="E2" version="1"/>
+	</way>
+	<way id="B3B4" version="1">
+		<nd ref="B3" version="1"/>
+		<nd ref="B4" version="1"/>
+	</way>
+	<way id="A1A2" version="1">
+		<nd ref="A1" version="1"/>
+		<nd ref="A2" version="1"/>
+	</way>
+	<way id="B3B2" version="1">
+		<nd ref="B3" version="1"/>
+		<nd ref="B2" version="1"/>
+	</way>
+	<way id="-E52" version="1">
+		<nd ref="J13" version="1"/>
+		<nd ref="J23" version="1"/>
+	</way>
+	<way id="-E51" version="1">
+		<nd ref="B0" version="1"/>
+		<nd ref="J30" version="1"/>
+	</way>
+	<way id="A0A1" version="1">
+		<nd ref="A0" version="1"/>
+		<nd ref="A1" version="1"/>
+	</way>
+	<way id="B2B1" version="1">
+		<nd ref="B2" version="1"/>
+		<nd ref="B1" version="1"/>
+	</way>
+	<way id="-E54" version="1">
+		<nd ref="J7" version="1"/>
+		<nd ref="J31" version="1"/>
+	</way>
+	<way id="-E53" version="1">
+		<nd ref="J31" version="1"/>
+		<nd ref="A3" version="1"/>
+	</way>
+	<way id="-E50" version="1">
+		<nd ref="J30" version="1"/>
+		<nd ref="J26" version="1"/>
+	</way>
+	<way id="-E59" version="1">
+		<nd ref="J14" version="1"/>
+		<nd ref="J8" version="1"/>
+	</way>
+	<way id="-E56" version="1">
+		<nd ref="J16" version="1"/>
+		<nd ref="J17" version="1"/>
+	</way>
+	<way id="-E55" version="1">
+		<nd ref="J3" version="1"/>
+		<nd ref="J31" version="1"/>
+	</way>
+	<way id="-E58" version="1">
+		<nd ref="J14" version="1"/>
+		<nd ref="J11" version="1"/>
+	</way>
+	<way id="-E57" version="1">
+		<nd ref="J6" version="1"/>
+		<nd ref="J9" version="1"/>
+	</way>
+	<way id="C4B4" version="1">
+		<nd ref="C4" version="1"/>
+		<nd ref="B4" version="1"/>
+	</way>
+	<way id="B2A2" version="1">
+		<nd ref="B2" version="1"/>
+		<nd ref="A2" version="1"/>
+	</way>
+	<way id="B3C3" version="1">
+		<nd ref="B3" version="1"/>
+		<nd ref="C3" version="1"/>
+	</way>
+	<way id="-E63" version="1">
+		<nd ref="B4" version="1"/>
+		<nd ref="C3" version="1"/>
+	</way>
+	<way id="-E62" version="1">
+		<nd ref="C3" version="1"/>
+		<nd ref="D2" version="1"/>
+	</way>
+	<way id="B1A1" version="1">
+		<nd ref="B1" version="1"/>
+		<nd ref="A1" version="1"/>
+	</way>
+	<way id="B2C2" version="1">
+		<nd ref="B2" version="1"/>
+		<nd ref="C2" version="1"/>
+	</way>
+	<way id="A0B0" version="1">
+		<nd ref="A0" version="1"/>
+		<nd ref="B0" version="1"/>
+	</way>
+	<way id="-E61" version="1">
+		<nd ref="D2" version="1"/>
+		<nd ref="E1" version="1"/>
+	</way>
+	<way id="-E60" version="1">
+		<nd ref="J20" version="1"/>
+		<nd ref="J19" version="1"/>
+	</way>
+	<way id="E0E1" version="1">
+		<nd ref="E0" version="1"/>
+		<nd ref="E1" version="1"/>
+	</way>
+	<way id="C4C3" version="1">
+		<nd ref="C4" version="1"/>
+		<nd ref="C3" version="1"/>
+	</way>
+	<way id="B2B3" version="1">
+		<nd ref="B2" version="1"/>
+		<nd ref="B3" version="1"/>
+	</way>
+	<way id="C3C2" version="1">
+		<nd ref="C3" version="1"/>
+		<nd ref="C2" version="1"/>
+	</way>
+	<way id="B1B2" version="1">
+		<nd ref="B1" version="1"/>
+		<nd ref="B2" version="1"/>
+	</way>
+	<way id="B1B0" version="1">
+		<nd ref="B1" version="1"/>
+		<nd ref="B0" version="1"/>
+	</way>
+	<way id="E0" version="1">
+		<nd ref="A0" version="1"/>
+		<nd ref="J0" version="1"/>
+	</way>
+	<way id="E1" version="1">
+		<nd ref="A4" version="1"/>
+		<nd ref="J1" version="1"/>
+	</way>
+	<way id="E2" version="1">
+		<nd ref="A1" version="1"/>
+		<nd ref="J0" version="1"/>
+	</way>
+	<way id="E3" version="1">
+		<nd ref="A2" version="1"/>
+		<nd ref="J2" version="1"/>
+	</way>
+	<way id="E4" version="1">
+		<nd ref="A3" version="1"/>
+		<nd ref="J3" version="1"/>
+	</way>
+	<way id="E5" version="1">
+		<nd ref="J3" version="1"/>
+		<nd ref="J4" version="1"/>
+	</way>
+	<way id="E6" version="1">
+		<nd ref="J0" version="1"/>
+		<nd ref="J5" version="1"/>
+	</way>
+	<way id="E7" version="1">
+		<nd ref="J5" version="1"/>
+		<nd ref="J6" version="1"/>
+	</way>
+	<way id="E8" version="1">
+		<nd ref="J1" version="1"/>
+		<nd ref="J7" version="1"/>
+	</way>
+	<way id="E9" version="1">
+		<nd ref="J7" version="1"/>
+		<nd ref="J8" version="1"/>
+	</way>
+	<way id="C3B3" version="1">
+		<nd ref="C3" version="1"/>
+		<nd ref="B3" version="1"/>
+	</way>
+	<way id="C4D4" version="1">
+		<nd ref="C4" version="1"/>
+		<nd ref="D4" version="1"/>
+	</way>
+	<way id="C2B2" version="1">
+		<nd ref="C2" version="1"/>
+		<nd ref="B2" version="1"/>
+	</way>
+	<way id="C3D3" version="1">
+		<nd ref="C3" version="1"/>
+		<nd ref="D3" version="1"/>
+	</way>
+	<way id="B0A0" version="1">
+		<nd ref="B0" version="1"/>
+		<nd ref="A0" version="1"/>
+	</way>
+	<way id="B1C1" version="1">
+		<nd ref="B1" version="1"/>
+		<nd ref="C1" version="1"/>
+	</way>
+	<way id="C3C4" version="1">
+		<nd ref="C3" version="1"/>
+		<nd ref="C4" version="1"/>
+	</way>
+	<way id="C2C3" version="1">
+		<nd ref="C2" version="1"/>
+		<nd ref="C3" version="1"/>
+	</way>
+	<way id="D4D3" version="1">
+		<nd ref="D4" version="1"/>
+		<nd ref="D3" version="1"/>
+	</way>
+	<way id="C2C1" version="1">
+		<nd ref="C2" version="1"/>
+		<nd ref="C1" version="1"/>
+	</way>
+	<way id="B0B1" version="1">
+		<nd ref="B0" version="1"/>
+		<nd ref="B1" version="1"/>
+	</way>
+	<way id="D4C4" version="1">
+		<nd ref="D4" version="1"/>
+		<nd ref="C4" version="1"/>
+	</way>
+	<way id="D3C3" version="1">
+		<nd ref="D3" version="1"/>
+		<nd ref="C3" version="1"/>
+	</way>
+	<way id="D4E4" version="1">
+		<nd ref="D4" version="1"/>
+		<nd ref="E4" version="1"/>
+	</way>
+	<way id="C1B1" version="1">
+		<nd ref="C1" version="1"/>
+		<nd ref="B1" version="1"/>
+	</way>
+	<way id="C2D2" version="1">
+		<nd ref="C2" version="1"/>
+		<nd ref="D2" version="1"/>
+	</way>
+	<way id="B0C0" version="1">
+		<nd ref="B0" version="1"/>
+		<nd ref="C0" version="1"/>
+	</way>
+	<way id="D3D4" version="1">
+		<nd ref="D3" version="1"/>
+		<nd ref="D4" version="1"/>
+	</way>
+	<way id="C1C2" version="1">
+		<nd ref="C1" version="1"/>
+		<nd ref="C2" version="1"/>
+	</way>
+	<way id="D3D2" version="1">
+		<nd ref="D3" version="1"/>
+		<nd ref="D2" version="1"/>
+	</way>
+	<way id="C1C0" version="1">
+		<nd ref="C1" version="1"/>
+		<nd ref="C0" version="1"/>
+	</way>
+	<way id="E4D4" version="1">
+		<nd ref="E4" version="1"/>
+		<nd ref="D4" version="1"/>
+	</way>
+	<way id="D2C2" version="1">
+		<nd ref="D2" version="1"/>
+		<nd ref="C2" version="1"/>
+	</way>
+	<way id="D3E3" version="1">
+		<nd ref="D3" version="1"/>
+		<nd ref="E3" version="1"/>
+	</way>
+	<way id="C0B0" version="1">
+		<nd ref="C0" version="1"/>
+		<nd ref="B0" version="1"/>
+	</way>
+	<way id="C1D1" version="1">
+		<nd ref="C1" version="1"/>
+		<nd ref="D1" version="1"/>
+	</way>
+	<way id="E11" version="1">
+		<nd ref="J5" version="1"/>
+		<nd ref="J7" version="1"/>
+	</way>
+	<way id="E10" version="1">
+		<nd ref="J8" version="1"/>
+		<nd ref="J6" version="1"/>
+	</way>
+	<way id="E13" version="1">
+		<nd ref="J1" version="1"/>
+		<nd ref="J2" version="1"/>
+	</way>
+	<way id="E12" version="1">
+		<nd ref="J3" version="1"/>
+		<nd ref="J7" version="1"/>
+	</way>
+	<way id="E15" version="1">
+		<nd ref="J4" version="1"/>
+		<nd ref="J10" version="1"/>
+	</way>
+	<way id="E14" version="1">
+		<nd ref="J7" version="1"/>
+		<nd ref="J9" version="1"/>
+	</way>
+	<way id="E17" version="1">
+		<nd ref="J11" version="1"/>
+		<nd ref="J12" version="1"/>
+	</way>
+	<way id="E16" version="1">
+		<nd ref="J9" version="1"/>
+		<nd ref="J11" version="1"/>
+	</way>
+	<way id="E19" version="1">
+		<nd ref="J6" version="1"/>
+		<nd ref="J14" version="1"/>
+	</way>
+	<way id="E18" version="1">
+		<nd ref="J5" version="1"/>
+		<nd ref="J13" version="1"/>
+	</way>
+	<way id="D2D3" version="1">
+		<nd ref="D2" version="1"/>
+		<nd ref="D3" version="1"/>
+	</way>
+	<way id="E20" version="1">
+		<nd ref="J14" version="1"/>
+		<nd ref="J12" version="1"/>
+	</way>
+	<way id="C0C1" version="1">
+		<nd ref="C0" version="1"/>
+		<nd ref="C1" version="1"/>
+	</way>
+	<way id="D2D1" version="1">
+		<nd ref="D2" version="1"/>
+		<nd ref="D1" version="1"/>
+	</way>
+	<way id="E22" version="1">
+		<nd ref="J13" version="1"/>
+		<nd ref="J10" version="1"/>
+	</way>
+	<way id="E21" version="1">
+		<nd ref="J12" version="1"/>
+		<nd ref="J15" version="1"/>
+	</way>
+	<way id="E24" version="1">
+		<nd ref="J15" version="1"/>
+		<nd ref="J10" version="1"/>
+	</way>
+	<way id="E23" version="1">
+		<nd ref="J13" version="1"/>
+		<nd ref="J14" version="1"/>
+	</way>
+	<way id="E26" version="1">
+		<nd ref="J10" version="1"/>
+		<nd ref="J17" version="1"/>
+	</way>
+	<way id="E25" version="1">
+		<nd ref="J15" version="1"/>
+		<nd ref="J16" version="1"/>
+	</way>
+	<way id="E28" version="1">
+		<nd ref="J18" version="1"/>
+		<nd ref="J4" version="1"/>
+	</way>
+	<way id="E27" version="1">
+		<nd ref="J17" version="1"/>
+		<nd ref="J18" version="1"/>
+	</way>
+	<way id="E29" version="1">
+		<nd ref="J16" version="1"/>
+		<nd ref="J4" version="1"/>
+	</way>
+	<way id="E3D3" version="1">
+		<nd ref="E3" version="1"/>
+		<nd ref="D3" version="1"/>
+	</way>
+	<way id="E30" version="1">
+		<nd ref="J16" version="1"/>
+		<nd ref="J19" version="1"/>
+	</way>
+	<way id="D1C1" version="1">
+		<nd ref="D1" version="1"/>
+		<nd ref="C1" version="1"/>
+	</way>
+	<way id="D2E2" version="1">
+		<nd ref="D2" version="1"/>
+		<nd ref="E2" version="1"/>
+	</way>
+	<way id="E33" version="1">
+		<nd ref="J21" version="1"/>
+		<nd ref="J22" version="1"/>
+	</way>
+	<way id="E32" version="1">
+		<nd ref="J18" version="1"/>
+		<nd ref="J21" version="1"/>
+	</way>
+	<way id="C0D0" version="1">
+		<nd ref="C0" version="1"/>
+		<nd ref="D0" version="1"/>
+	</way>
+	<way id="E35" version="1">
+		<nd ref="J23" version="1"/>
+		<nd ref="J24" version="1"/>
+	</way>
+	<way id="E34" version="1">
+		<nd ref="J22" version="1"/>
+		<nd ref="J23" version="1"/>
+	</way>
+	<way id="E37" version="1">
+		<nd ref="J20" version="1"/>
+		<nd ref="E0" version="1"/>
+	</way>
+	<way id="E36" version="1">
+		<nd ref="J24" version="1"/>
+		<nd ref="J0" version="1"/>
+	</way>
+	<way id="E39" version="1">
+		<nd ref="J25" version="1"/>
+		<nd ref="J26" version="1"/>
+	</way>
+	<way id="E38" version="1">
+		<nd ref="J23" version="1"/>
+		<nd ref="J25" version="1"/>
+	</way>
+	<way id="-E0" version="1">
+		<nd ref="J0" version="1"/>
+		<nd ref="A0" version="1"/>
+	</way>
+	<way id="-E1" version="1">
+		<nd ref="J1" version="1"/>
+		<nd ref="A4" version="1"/>
+	</way>
+	<way id="-E2" version="1">
+		<nd ref="J0" version="1"/>
+		<nd ref="A1" version="1"/>
+	</way>
+	<way id="-E3" version="1">
+		<nd ref="J2" version="1"/>
+		<nd ref="A2" version="1"/>
+	</way>
+	<way id="A4A3" version="1">
+		<nd ref="A4" version="1"/>
+		<nd ref="A3" version="1"/>
+	</way>
+	<way id="-E4" version="1">
+		<nd ref="J3" version="1"/>
+		<nd ref="A3" version="1"/>
+	</way>
+	<way id="-E5" version="1">
+		<nd ref="J4" version="1"/>
+		<nd ref="J3" version="1"/>
+	</way>
+	<way id="E4E3" version="1">
+		<nd ref="E4" version="1"/>
+		<nd ref="E3" version="1"/>
+	</way>
+	<way id="-E6" version="1">
+		<nd ref="J5" version="1"/>
+		<nd ref="J0" version="1"/>
+	</way>
+	<way id="-E7" version="1">
+		<nd ref="J6" version="1"/>
+		<nd ref="J5" version="1"/>
+	</way>
+	<way id="-E8" version="1">
+		<nd ref="J7" version="1"/>
+		<nd ref="J1" version="1"/>
+	</way>
+	<way id="E40" version="1">
+		<nd ref="J26" version="1"/>
+		<nd ref="J27" version="1"/>
+	</way>
+	<way id="-E9" version="1">
+		<nd ref="J8" version="1"/>
+		<nd ref="J7" version="1"/>
+	</way>
+	<way id="E42" version="1">
+		<nd ref="D0" version="1"/>
+		<nd ref="J28" version="1"/>
+	</way>
+	<way id="E41" version="1">
+		<nd ref="J27" version="1"/>
+		<nd ref="J20" version="1"/>
+	</way>
+	<way id="D1D2" version="1">
+		<nd ref="D1" version="1"/>
+		<nd ref="D2" version="1"/>
+	</way>
+	<way id="E44" version="1">
+		<nd ref="J24" version="1"/>
+		<nd ref="J28" version="1"/>
+	</way>
+	<way id="E43" version="1">
+		<nd ref="A0" version="1"/>
+		<nd ref="J23" version="1"/>
+	</way>
+	<way id="D1D0" version="1">
+		<nd ref="D1" version="1"/>
+		<nd ref="D0" version="1"/>
+	</way>
+	<way id="E46" version="1">
+		<nd ref="A0" version="1"/>
+		<nd ref="J29" version="1"/>
+	</way>
+	<way id="E45" version="1">
+		<nd ref="J28" version="1"/>
+		<nd ref="J25" version="1"/>
+	</way>
+	<way id="E48" version="1">
+		<nd ref="J20" version="1"/>
+		<nd ref="D0" version="1"/>
+	</way>
+	<way id="E47" version="1">
+		<nd ref="C0" version="1"/>
+		<nd ref="J27" version="1"/>
+	</way>
+	<way id="E49" version="1">
+		<nd ref="J27" version="1"/>
+		<nd ref="J29" version="1"/>
+	</way>
+	<way id="A4B4" version="1">
+		<nd ref="A4" version="1"/>
+		<nd ref="B4" version="1"/>
+	</way>
+	<way id="E2D2" version="1">
+		<nd ref="E2" version="1"/>
+		<nd ref="D2" version="1"/>
+	</way>
+	<way id="E51" version="1">
+		<nd ref="J30" version="1"/>
+		<nd ref="B0" version="1"/>
+	</way>
+	<way id="E50" version="1">
+		<nd ref="J26" version="1"/>
+		<nd ref="J30" version="1"/>
+	</way>
+	<way id="E53" version="1">
+		<nd ref="A3" version="1"/>
+		<nd ref="J31" version="1"/>
+	</way>
+	<way id="E52" version="1">
+		<nd ref="J23" version="1"/>
+		<nd ref="J13" version="1"/>
+	</way>
+	<way id="E55" version="1">
+		<nd ref="J31" version="1"/>
+		<nd ref="J3" version="1"/>
+	</way>
+	<way id="E54" version="1">
+		<nd ref="J31" version="1"/>
+		<nd ref="J7" version="1"/>
+	</way>
+	<way id="D0C0" version="1">
+		<nd ref="D0" version="1"/>
+		<nd ref="C0" version="1"/>
+	</way>
+	<way id="D1E1" version="1">
+		<nd ref="D1" version="1"/>
+		<nd ref="E1" version="1"/>
+	</way>
+	<way id="E57" version="1">
+		<nd ref="J9" version="1"/>
+		<nd ref="J6" version="1"/>
+	</way>
+	<way id="E56" version="1">
+		<nd ref="J17" version="1"/>
+		<nd ref="J16" version="1"/>
+	</way>
+	<way id="E59" version="1">
+		<nd ref="J8" version="1"/>
+		<nd ref="J14" version="1"/>
+	</way>
+	<way id="E58" version="1">
+		<nd ref="J11" version="1"/>
+		<nd ref="J14" version="1"/>
+	</way>
+	<way id="A3A4" version="1">
+		<nd ref="A3" version="1"/>
+		<nd ref="A4" version="1"/>
+	</way>
+	<way id="E3E2" version="1">
+		<nd ref="E3" version="1"/>
+		<nd ref="E2" version="1"/>
+	</way>
+	<way id="A3A2" version="1">
+		<nd ref="A3" version="1"/>
+		<nd ref="A2" version="1"/>
+	</way>
+	<way id="E3E4" version="1">
+		<nd ref="E3" version="1"/>
+		<nd ref="E4" version="1"/>
+	</way>
+	<way id="E60" version="1">
+		<nd ref="J19" version="1"/>
+		<nd ref="J20" version="1"/>
+	</way>
+	<way id="E62" version="1">
+		<nd ref="D2" version="1"/>
+		<nd ref="C3" version="1"/>
+	</way>
+	<way id="E61" version="1">
+		<nd ref="E1" version="1"/>
+		<nd ref="D2" version="1"/>
+	</way>
+	<way id="-E10" version="1">
+		<nd ref="J6" version="1"/>
+		<nd ref="J8" version="1"/>
+	</way>
+	<way id="E63" version="1">
+		<nd ref="C3" version="1"/>
+		<nd ref="B4" version="1"/>
+	</way>
+	<way id="D0D1" version="1">
+		<nd ref="D0" version="1"/>
+		<nd ref="D1" version="1"/>
+	</way>
+	<way id="-E16" version="1">
+		<nd ref="J11" version="1"/>
+		<nd ref="J9" version="1"/>
+	</way>
+	<way id="-E15" version="1">
+		<nd ref="J10" version="1"/>
+		<nd ref="J4" version="1"/>
+	</way>
+	<way id="-E18" version="1">
+		<nd ref="J13" version="1"/>
+		<nd ref="J5" version="1"/>
+	</way>
+	<way id="-E17" version="1">
+		<nd ref="J12" version="1"/>
+		<nd ref="J11" version="1"/>
+	</way>
+	<way id="-E12" version="1">
+		<nd ref="J7" version="1"/>
+		<nd ref="J3" version="1"/>
+	</way>
+	<way id="-E11" version="1">
+		<nd ref="J7" version="1"/>
+		<nd ref="J5" version="1"/>
+	</way>
+	<way id="-E14" version="1">
+		<nd ref="J9" version="1"/>
+		<nd ref="J7" version="1"/>
+	</way>
+	<way id="-E13" version="1">
+		<nd ref="J2" version="1"/>
+		<nd ref="J1" version="1"/>
+	</way>
+	<way id="E1D1" version="1">
+		<nd ref="E1" version="1"/>
+		<nd ref="D1" version="1"/>
+	</way>
+	<way id="B4A4" version="1">
+		<nd ref="B4" version="1"/>
+		<nd ref="A4" version="1"/>
+	</way>
+	<way id="A3B3" version="1">
+		<nd ref="A3" version="1"/>
+		<nd ref="B3" version="1"/>
+	</way>
+	<way id="-E21" version="1">
+		<nd ref="J15" version="1"/>
+		<nd ref="J12" version="1"/>
+	</way>
+	<way id="-E20" version="1">
+		<nd ref="J12" version="1"/>
+		<nd ref="J14" version="1"/>
+	</way>
+	<way id="-E27" version="1">
+		<nd ref="J18" version="1"/>
+		<nd ref="J17" version="1"/>
+	</way>
+	<way id="D0E0" version="1">
+		<nd ref="D0" version="1"/>
+		<nd ref="E0" version="1"/>
+	</way>
+	<way id="-E26" version="1">
+		<nd ref="J17" version="1"/>
+		<nd ref="J10" version="1"/>
+	</way>
+	<way id="-E29" version="1">
+		<nd ref="J4" version="1"/>
+		<nd ref="J16" version="1"/>
+	</way>
+	<way id="-E28" version="1">
+		<nd ref="J4" version="1"/>
+		<nd ref="J18" version="1"/>
+	</way>
+	<way id="-E23" version="1">
+		<nd ref="J14" version="1"/>
+		<nd ref="J13" version="1"/>
+	</way>
+	<way id="-E22" version="1">
+		<nd ref="J10" version="1"/>
+		<nd ref="J13" version="1"/>
+	</way>
+	<way id="-E25" version="1">
+		<nd ref="J16" version="1"/>
+		<nd ref="J15" version="1"/>
+	</way>
+	<way id="-E24" version="1">
+		<nd ref="J10" version="1"/>
+		<nd ref="J15" version="1"/>
+	</way>
+	<way id="-E19" version="1">
+		<nd ref="J14" version="1"/>
+		<nd ref="J6" version="1"/>
+	</way>
+	<way id="E2E1" version="1">
+		<nd ref="E2" version="1"/>
+		<nd ref="E1" version="1"/>
+	</way>
+	<way id="E2E3" version="1">
+		<nd ref="E2" version="1"/>
+		<nd ref="E3" version="1"/>
+	</way>
+	<way id="A2A3" version="1">
+		<nd ref="A2" version="1"/>
+		<nd ref="A3" version="1"/>
+	</way>
+	<way id="B4B3" version="1">
+		<nd ref="B4" version="1"/>
+		<nd ref="B3" version="1"/>
+	</way>
+	<way id="A2A1" version="1">
+		<nd ref="A2" version="1"/>
+		<nd ref="A1" version="1"/>
+	</way>
+</osm>

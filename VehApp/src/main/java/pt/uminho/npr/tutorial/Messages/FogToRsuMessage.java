@@ -9,6 +9,9 @@ import org.eclipse.mosaic.lib.objects.v2x.EncodedPayload;
 import org.eclipse.mosaic.lib.objects.v2x.MessageRouting;
 import org.eclipse.mosaic.lib.objects.v2x.V2xMessage;
 
+/**
+ * FogToRsuMessage agora encapsula diretamente um FogEventMessage no campo commandEvent.
+ */
 public final class FogToRsuMessage extends V2xMessage {
 
     private final String uniqueId;
@@ -18,7 +21,7 @@ public final class FogToRsuMessage extends V2xMessage {
     private final String fogIdentifier;
     private final String rsuTarget;
     private final String vehicleTarget;
-    private final String command;
+    private final FogEventMessage commandEvent;
 
     public FogToRsuMessage(MessageRouting routing,
                            String uniqueId,
@@ -28,7 +31,7 @@ public final class FogToRsuMessage extends V2xMessage {
                            String fogIdentifier,
                            String rsuTarget,
                            String vehicleTarget,
-                           String command) {
+                           FogEventMessage commandEvent) {
         super(routing);
         this.uniqueId        = Objects.requireNonNull(uniqueId);
         this.timestamp       = timestamp;
@@ -37,13 +40,14 @@ public final class FogToRsuMessage extends V2xMessage {
         this.fogIdentifier   = Objects.requireNonNull(fogIdentifier);
         this.rsuTarget       = Objects.requireNonNull(rsuTarget);
         this.vehicleTarget   = Objects.requireNonNull(vehicleTarget);
-        this.command         = Objects.requireNonNull(command);
+        this.commandEvent    = Objects.requireNonNull(commandEvent);
     }
 
     @Nonnull @Override
     public EncodedPayload getPayload() {
         try (ByteArrayOutputStream buf = new ByteArrayOutputStream();
-             DataOutputStream out = new DataOutputStream(buf)) {
+            DataOutputStream out = new DataOutputStream(buf)) {
+
             out.writeUTF(uniqueId);
             out.writeLong(timestamp);
             out.writeLong(expiryTimestamp);
@@ -51,21 +55,25 @@ public final class FogToRsuMessage extends V2xMessage {
             out.writeUTF(fogIdentifier);
             out.writeUTF(rsuTarget);
             out.writeUTF(vehicleTarget);
-            out.writeUTF(command);
+
+            byte[] evBytes = commandEvent.getPayload().getBytes();
+            out.writeInt(evBytes.length);
+            out.write(evBytes);
+
             return new EncodedPayload(buf.toByteArray(), buf.size());
         } catch (IOException e) {
             throw new RuntimeException("ERROR ENCODING FOG_TO_RSU_MESSAGE", e);
         }
     }
 
-    public String getUniqueId()        { return uniqueId; }
-    public long   getTimestamp()       { return timestamp; }
-    public long   getExpiryTimestamp() { return expiryTimestamp; }
-    public String getMessageType()     { return messageType; }
-    public String getFogIdentifier()   { return fogIdentifier; }
-    public String getRsuTarget()       { return rsuTarget; }
-    public String getVehicleTarget()   { return vehicleTarget; }
-    public String getCommand()         { return command; }
+    public String getUniqueId()             { return uniqueId; }
+    public long   getTimestamp()            { return timestamp; }
+    public long   getExpiryTimestamp()      { return expiryTimestamp; }
+    public String getMessageType()          { return messageType; }
+    public String getFogIdentifier()        { return fogIdentifier; }
+    public String getRsuTarget()            { return rsuTarget; }
+    public String getVehicleTarget()        { return vehicleTarget; }
+    public FogEventMessage getCommandEvent(){ return commandEvent; }
 
     @Override
     public String toString() {
@@ -73,8 +81,9 @@ public final class FogToRsuMessage extends V2xMessage {
                " | FOG_IDENTIFIER: " + fogIdentifier +
                " | RSU_TARGET: " + rsuTarget +
                " | VEHICLE_TARGET: " + vehicleTarget +
-               " | COMMAND: " + command +
+               " | MESSAGE_TYPE: " + messageType +
                " | TIMESTAMP: " + timestamp +
-               " | EXPIRY_TIMESTAMP: " + expiryTimestamp;
+               " | EXPIRY_TIMESTAMP: " + expiryTimestamp +
+               " | EVENT_PAYLOAD_SIZE: " + commandEvent.getPayload().getBytes().length;
     }
 }

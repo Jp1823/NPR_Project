@@ -30,7 +30,7 @@
         "ns3": false,
         "omnetpp": false,
         "output": true,
-        "sns": false,
+        "sns": true,
         "sumo": true,
         "phabmacs": false
     }

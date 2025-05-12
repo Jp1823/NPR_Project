@@ -29,7 +29,7 @@ import java.util.stream.Collectors;
 public final class VehApp extends AbstractApplication<VehicleOperatingSystem>
         implements VehicleApplication, CommunicationApplication {
 
-    private static final long   BEACON_PERIOD_MS   = 100 * TIME.MILLI_SECOND;
+    private static final long   BEACON_PERIOD_MS   = 500 * TIME.MILLI_SECOND;
     private static final long   CLEAN_THRESHOLD_MS = 1000 * TIME.MILLI_SECOND;
     private static final int    TX_POWER_DBM       = 23;
     private static final double TX_RANGE_M         = 150.0;

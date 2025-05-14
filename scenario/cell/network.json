@@ -45,7 +45,7 @@
       "uplink": {
         "delay": {
           "type": "ConstantDelay",
-          "delay": "200 ms"
+          "delay": "100 ms"
         },
         "transmission": {
           "lossProbability": 0.5,

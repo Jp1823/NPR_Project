@@ -23,7 +23,7 @@
         "tau": 0.0
       },
       "applications": [
-        "pt.uminho.npr.tutorial.VehApp"
+        "pt.uminho.npr.projeto.VehApp"
       ]
     }
   ],
@@ -45,244 +45,27 @@
       ],
       "departConnectionIndex": 0,
       "pos": 0,
-      "route": "r_0",
+      "route": "r_8",
       "applications": [
-        "pt.uminho.npr.tutorial.VehApp"
-      ]
-    },
-    {
-      "startingTime": "5 s",
-      "maxTime": "700 s",
-      "targetFlow": 20.0,
-      "spawningMode": "CONSTANT",
-      "maxNumberVehicles": 20,
-      "laneSelectionMode": "BEST",
-      "departSpeed": "0.0 m/s",
-      "departSpeedMode": "MAXIMUM",
-      "types": [
-        {
-          "name": "Car",
-          "weight": 1.0
-        }
-      ],
-      "departConnectionIndex": 0,
-      "pos": 0,
-      "route": "r_1",
-      "applications": [
-        "pt.uminho.npr.tutorial.VehApp"
-      ]
-    },
-    {
-      "startingTime": "5 s",
-      "maxTime": "700 s",
-      "targetFlow": 20.0,
-      "spawningMode": "CONSTANT",
-      "maxNumberVehicles": 20,
-      "laneSelectionMode": "BEST",
-      "departSpeed": "0.0 m/s",
-      "departSpeedMode": "MAXIMUM",
-      "types": [
-        {
-          "name": "Car",
-          "weight": 1.0
-        }
-      ],
-      "departConnectionIndex": 0,
-      "pos": 0,
-      "route": "r_3",
-      "applications": [
-        "pt.uminho.npr.tutorial.VehApp"
-      ]
-    },
-    {
-      "startingTime": "5 s",
-      "maxTime": "700 s",
-      "targetFlow": 20.0,
-      "spawningMode": "CONSTANT",
-      "maxNumberVehicles": 20,
-      "laneSelectionMode": "BEST",
-      "departSpeed": "0.0 m/s",
-      "departSpeedMode": "MAXIMUM",
-      "types": [
-        {
-          "name": "Car",
-          "weight": 1.0
-        }
-      ],
-      "departConnectionIndex": 0,
-      "pos": 0,
-      "route": "r_4",
-      "applications": [
-        "pt.uminho.npr.tutorial.VehApp"
-      ]
-    },
-    {
-      "startingTime": "5 s",
-      "maxTime": "700 s",
-      "targetFlow": 20.0,
-      "spawningMode": "CONSTANT",
-      "maxNumberVehicles": 20,
-      "laneSelectionMode": "BEST",
-      "departSpeed": "0.0 m/s",
-      "departSpeedMode": "MAXIMUM",
-      "types": [
-        {
-          "name": "Car",
-          "weight": 1.0
-        }
-      ],
-      "departConnectionIndex": 0,
-      "pos": 0,
-      "route": "r_6",
-      "applications": [
-        "pt.uminho.npr.tutorial.VehApp"
+        "pt.uminho.npr.projeto.VehApp"
       ]
     }
   ],
   "rsus": [
     {
       "position": {
-        "latitude": 52.451033,
-        "longitude": 13.295327
-      },
-      "name": "RSU_1",
-      "applications": [ "pt.uminho.npr.tutorial.RsuApp" ]
-    },
-    {
-      "position": {
-        "latitude": 52.451406,
-        "longitude": 13.298062
-      },
-      "name": "RSU_2",
-      "applications": [ "pt.uminho.npr.tutorial.RsuApp" ]
-    },
-    {
-      "position": {
-        "latitude": 52.452119,
-        "longitude": 13.301154
-      },
-      "name": "RSU_3",
-      "applications": [ "pt.uminho.npr.tutorial.RsuApp" ]
-    },
-    {
-      "position": {
-        "latitude": 52.452153,
-        "longitude": 13.304256
-      },
-      "name": "RSU_4",
-      "applications": [ "pt.uminho.npr.tutorial.RsuApp" ]
-    },
-    {
-      "position": {
         "latitude": 52.450304,
         "longitude": 13.301368
       },
       "name": "RSU_5",
-      "applications": [ "pt.uminho.npr.tutorial.RsuApp" ]
-    },
-    {
-      "position": {
-        "latitude": 52.450268,
-        "longitude": 13.304328
-      },
-      "name": "RSU_6",
-      "applications": [ "pt.uminho.npr.tutorial.RsuApp" ]
-    },
-    {
-      "position": {
-        "latitude": 52.448599,
-        "longitude": 13.305743
-      },
-      "name": "RSU_7",
-      "applications": [ "pt.uminho.npr.tutorial.RsuApp" ]
-    },
-    {
-      "position": {
-        "latitude": 52.448538,
-        "longitude": 13.302883
-      },
-      "name": "RSU_8",
-      "applications": [ "pt.uminho.npr.tutorial.RsuApp" ]
-    },
-    {
-      "position": {
-        "latitude": 52.447641,
-        "longitude": 13.301310
-      },
-      "name": "RSU_9",
-      "applications": [ "pt.uminho.npr.tutorial.RsuApp" ]
-    },
-    {
-      "position": {
-        "latitude": 52.449290,
-        "longitude": 13.298481
-      },
-      "name": "RSU_10",
-      "applications": [ "pt.uminho.npr.tutorial.RsuApp" ]
-    },
-    {
-      "position": {
-        "latitude": 52.446686,
-        "longitude": 13.298421
-      },
-      "name": "RSU_11",
-      "applications": [ "pt.uminho.npr.tutorial.RsuApp" ]
-    },
-    {
-      "position": {
-        "latitude": 52.446557,
-        "longitude": 13.294261
-      },
-      "name": "RSU_12",
-      "applications": [ "pt.uminho.npr.tutorial.RsuApp" ]
-    },
-    {
-      "position": {
-        "latitude": 52.448404,
-        "longitude": 13.295637
-      },
-      "name": "RSU_13",
-      "applications": [ "pt.uminho.npr.tutorial.RsuApp" ]
-    },
-    {
-      "position": {
-        "latitude": 52.449206,
-        "longitude": 13.292616
-      },
-      "name": "RSU_14",
-      "applications": [ "pt.uminho.npr.tutorial.RsuApp" ]
+      "applications": [ "pt.uminho.npr.projeto.RsuApp" ]
     }
   ],
   "servers": [
     {
       "id": "FOG_1",
       "group": "FOG",
-      "applications": [ "pt.uminho.npr.tutorial.FogApp" ]
-    },
-    {
-      "id": "FOG_2",
-      "group": "FOG",
-      "applications": [ "pt.uminho.npr.tutorial.FogApp" ]
-    },
-    {
-      "id": "FOG_3",
-      "group": "FOG",
-      "applications": [ "pt.uminho.npr.tutorial.FogApp" ]
-    },
-    {
-      "id": "FOG_4",
-      "group": "FOG",
-      "applications": [ "pt.uminho.npr.tutorial.FogApp" ]
-    },
-    {
-      "id": "FOG_5",
-      "group": "FOG",
-      "applications": [ "pt.uminho.npr.tutorial.FogApp" ]
-    },
-    {
-      "id": "FOG_6",
-      "group": "FOG",
-      "applications": [ "pt.uminho.npr.tutorial.FogApp" ]
+      "applications": [ "pt.uminho.npr.projeto.FogApp" ]
     }
   ]
 }

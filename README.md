@@ -1,16 +1,16 @@
 1. Criar Base de Dados:
-`scenario-convert.sh --sumo2db -i sievekingplatz.net.xml`
+`scenario-convert.sh --sumo2db -i proj.net.xml`
 
 2. Adicionar rotas à base de dados:
-`scenario-convert.sh --sumo2db -i sievekingplatz.rou.xml -d sievekingplatz.db`
+`scenario-convert.sh --sumo2db -i proj.rou.xml -d proj.db`
 
 3. Criar cenário mosaic (altera o .net.xml, guardar e copiar o original depois do comando):
-`scenario-convert.sh --db2mosaic -d .\steglitz.db`
+`scenario-convert.sh --db2mosaic -d .\proj.db`
 
 Executar cenário:
-`mosaic.bat -s tutorial -w 0`
+`./mosaic.bat -s scenario -w 0`
 ou
-`mosaic.sh -s tutorial -w 0`
+`mosaic.sh -s scenario -w 0`
 
 Notas:
 - Alterar infos dos carros no `mapping/mapping_config.json`

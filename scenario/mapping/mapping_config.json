@@ -251,56 +251,37 @@
       },
       "name": "RSU_14",
       "applications": [ "pt.uminho.npr.tutorial.RsuApp" ]
-    },
-
-
-
+    }
+  ],
+  "servers": [
     {
-      "position": {
-        "latitude": 52.450325,
-        "longitude": 13.299406
-      },
-      "name": "FOG_1",
+      "id": "FOG_1",
+      "group": "FOG",
       "applications": [ "pt.uminho.npr.tutorial.FogApp" ]
     },
     {
-      "position": {
-        "latitude": 52.451249,
-        "longitude": 13.302843
-      },
-      "name": "FOG_2",
+      "id": "FOG_2",
+      "group": "FOG",
       "applications": [ "pt.uminho.npr.tutorial.FogApp" ]
     },
     {
-      "position": {
-        "latitude": 52.448687,
-        "longitude": 13.304389
-      },
-      "name": "FOG_3",
+      "id": "FOG_3",
+      "group": "FOG",
       "applications": [ "pt.uminho.npr.tutorial.FogApp" ]
     },
     {
-      "position": {
-        "latitude": 52.448041,
-        "longitude": 13.299076
-      },
-      "name": "FOG_4",
+      "id": "FOG_4",
+      "group": "FOG",
       "applications": [ "pt.uminho.npr.tutorial.FogApp" ]
     },
     {
-      "position": {
-        "latitude": 52.447606,
-        "longitude": 13.295475
-      },
-      "name": "FOG_5",
+      "id": "FOG_5",
+      "group": "FOG",
       "applications": [ "pt.uminho.npr.tutorial.FogApp" ]
     },
     {
-      "position": {
-        "latitude": 52.449886,
-        "longitude": 13.294840
-      },
-      "name": "FOG_6",
+      "id": "FOG_6",
+      "group": "FOG",
       "applications": [ "pt.uminho.npr.tutorial.FogApp" ]
     }
   ]

@@ -8,29 +8,27 @@ import pt.uminho.npr.tutorial.Messages.VehicleToVehicle;
 
 import org.eclipse.mosaic.fed.application.app.AbstractApplication;
 import org.eclipse.mosaic.fed.application.app.api.CommunicationApplication;
-import org.eclipse.mosaic.fed.application.app.api.os.RoadSideUnitOperatingSystem;
-import org.eclipse.mosaic.fed.application.ambassador.simulation.communication.AdHocModuleConfiguration;
 import org.eclipse.mosaic.fed.application.ambassador.simulation.communication.ReceivedV2xMessage;
+import org.eclipse.mosaic.fed.application.app.api.os.ServerOperatingSystem;
+import org.eclipse.mosaic.fed.application.ambassador.simulation.communication.CellModuleConfiguration;
 import org.eclipse.mosaic.interactions.communication.V2xMessageTransmission;
-import org.eclipse.mosaic.lib.enums.AdHocChannel;
 import org.eclipse.mosaic.lib.geo.GeoPoint;
 import org.eclipse.mosaic.lib.objects.v2x.MessageRouting;
 import org.eclipse.mosaic.lib.objects.v2x.V2xMessage;
 import org.eclipse.mosaic.lib.util.scheduling.Event;
+import org.eclipse.mosaic.rti.DATA;
 import org.eclipse.mosaic.rti.TIME;
 
 import java.util.*;
 import java.util.concurrent.atomic.AtomicLong;
 
-public final class FogApp extends AbstractApplication<RoadSideUnitOperatingSystem>
+public final class FogApp extends AbstractApplication<ServerOperatingSystem>
         implements CommunicationApplication {
 
     private static final long   TICK_MS                   = 1_000 * TIME.MILLI_SECOND;
-    private static final int    TX_POWER_DBM              = 23;
-    private static final double TX_RANGE_M                = 100.0;
     private static final long   VEHICLE_STATE_TTL_MS      = 5_000 * TIME.MILLI_SECOND;
 
-    private static final double EVENT_PROBABILITY         = 0.05;
+    private static final double EVENT_PROBABILITY         = 0.01;
     private static final long   EVENT_TTL_MS              = 5_000 * TIME.MILLI_SECOND;
     private static final int    MAX_AFFECTED_VEHICLES     = 3;
 
@@ -42,20 +40,16 @@ public final class FogApp extends AbstractApplication<RoadSideUnitOperatingSyste
 
     @Override
     public void onStartup() {
-        getOs().getAdHocModule().enable(
-            new AdHocModuleConfiguration()
-                .addRadio()
-                .channel(AdHocChannel.CCH)
-                .power(TX_POWER_DBM)
-                .distance(TX_RANGE_M)
-                .create()
+        getOs().getCellModule().enable(new CellModuleConfiguration()
+            .maxDownlinkBitrate(50 * DATA.MEGABIT)
+            .maxUplinkBitrate(50 * DATA.MEGABIT)
         );
         scheduleTick();
     }
 
     @Override
     public void onShutdown() {
-        getOs().getAdHocModule().disable();
+        getOs().getCellModule().disable();
     }
 
     @Override
@@ -162,15 +156,12 @@ public final class FogApp extends AbstractApplication<RoadSideUnitOperatingSyste
             vehicleTarget,
             ev
         );
-        getOs().getAdHocModule().sendV2xMessage(msg);
+        getOs().getCellModule().sendV2xMessage(msg);
         logInfo("SENT EVENT " + ev.getUniqueId() + " TO " + vehicleTarget);
     }
 
     private MessageRouting newRouting() {
-        return getOs().getAdHocModule()
-                      .createMessageRouting()
-                      .viaChannel(AdHocChannel.CCH)
-                      .topoBroadCast();
+        return getOs().getCellModule().createMessageRouting().destination("RSU_1").build();
     }
 
     private void scheduleTick() {

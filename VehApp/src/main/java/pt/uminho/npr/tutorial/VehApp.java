@@ -18,6 +18,7 @@ import org.eclipse.mosaic.lib.geo.GeoPoint;
 import org.eclipse.mosaic.lib.objects.v2x.MessageRouting;
 import org.eclipse.mosaic.lib.objects.v2x.V2xMessage;
 import org.eclipse.mosaic.lib.util.scheduling.Event;
+import org.eclipse.mosaic.lib.util.scheduling.EventProcessor;
 import org.eclipse.mosaic.rti.TIME;
 
 import javax.annotation.Nonnull;
@@ -29,13 +30,15 @@ import java.util.stream.Collectors;
 public final class VehApp extends AbstractApplication<VehicleOperatingSystem>
         implements VehicleApplication, CommunicationApplication {
 
-    private static final long   BEACON_PERIOD_MS   = 500 * TIME.MILLI_SECOND;
+    private static final long   BEACON_PERIOD_MS   = 100 * TIME.MILLI_SECOND;
     private static final long   CLEAN_THRESHOLD_MS = 1000 * TIME.MILLI_SECOND;
     private static final int    TX_POWER_DBM       = 23;
     private static final double TX_RANGE_M         = 150.0;
     private static final double RSU_RANGE_M        = 150.0;
     private static final int    INITIAL_TTL        = 10;
-    private static final long EVENT_DURATION_NS = 5_000 * TIME.MILLI_SECOND;
+    private static final long   EVENT_DURATION_NS  = 5_000 * TIME.MILLI_SECOND;
+    private static final long   ACCIDENT_DURATION_NS = 5_000 * TIME.MILLI_SECOND;
+    private static final long   RESUME_ACCEL_DURATION_NS = 1_000 * TIME.MILLI_SECOND;
 
     private final Map<String, GeoPoint>   staticRsus    = new HashMap<>();
     private final Map<String, NodeRecord> neighborGraph = new HashMap<>();
@@ -48,6 +51,9 @@ public final class VehApp extends AbstractApplication<VehicleOperatingSystem>
 
     private boolean ready = false;
     private double  heading, speed;
+    private double  preAccidentSpeed = 0.0;
+    private boolean inAccident = false;
+
     // private long lastPrintTime = 0;
 
     private volatile boolean pendingBrake = false;
@@ -86,10 +92,22 @@ public final class VehApp extends AbstractApplication<VehicleOperatingSystem>
         if (!ready) {
             ready = true;
         }
+        if (pendingBrake && !inAccident) {
+            inAccident = true;
+            preAccidentSpeed = speed;
+            logInfo("ACCIDENT EVENT RECEIVED: APPLYING EMERGENCY BRAKE FOR " 
+                    + (ACCIDENT_DURATION_NS / TIME.MILLI_SECOND) + " ms");
 
-        if (pendingBrake) {
-            logInfo("ACCIDENT EVENT RECEIVED: APPLYING EMERGENCY BRAKE");
-            getOs().changeSpeedWithInterval(0.0, EVENT_DURATION_NS);
+            getOs().changeSpeedWithInterval(0.0, ACCIDENT_DURATION_NS);
+            long resumeTime = getOs().getSimulationTime() + ACCIDENT_DURATION_NS;
+            getOs().getEventManager().addEvent(resumeTime, new EventProcessor() {
+                @Override
+                public void processEvent(Event event) {
+                    logInfo("RESUMING SPEED TO " + preAccidentSpeed);
+                    getOs().changeSpeedWithInterval(preAccidentSpeed, RESUME_ACCEL_DURATION_NS);
+                    inAccident = false;
+                }
+            });
             pendingBrake = false;
         }
         if (pendingLaneChange) {
@@ -408,9 +426,10 @@ public final class VehApp extends AbstractApplication<VehicleOperatingSystem>
 
     private MessageRouting newRouting() {
         return getOs().getAdHocModule()
-                      .createMessageRouting()
-                      .viaChannel(AdHocChannel.CCH)
-                      .topoBroadCast();
+            .createMessageRouting()
+            .broadcast()
+            .topological()
+            .build();
     }
 
     private String chooseNextHop(String dst) {

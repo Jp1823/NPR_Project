@@ -1,0 +1,33 @@
+{
+  "hostMapping": {
+    "FOG_1":  "cell0",
+    "FOG_2":  "cell0",
+    "FOG_3":  "cell0",
+    "FOG_4":  "cell0",
+    "FOG_5":  "cell0",
+    "FOG_6":  "cell0",
+    "RSU_1":  "cell0",
+    "RSU_2":  "cell0",
+    "RSU_3":  "cell0",
+    "RSU_4":  "cell0",
+    "RSU_5":  "cell0",
+    "RSU_6":  "cell0",
+    "RSU_7":  "cell0",
+    "RSU_8":  "cell0",
+    "RSU_9":  "cell0",
+    "RSU_10": "cell0",
+    "RSU_11": "cell0",
+    "RSU_12": "cell0",
+    "RSU_13": "cell0",
+    "RSU_14": "cell0"
+  },
+  "headerLengths": {
+    "ethernetHeader": "144 b",
+    "cellularHeader": "144 b",
+    "ipHeader": "160 b",
+    "tcpHeader": "160 b",
+    "udpHeader": "64 b"
+  },
+  "networkConfigurationFile": "network.json",
+  "regionConfigurationFile": "regions.json"
+}

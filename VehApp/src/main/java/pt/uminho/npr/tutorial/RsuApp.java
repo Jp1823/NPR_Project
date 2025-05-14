@@ -7,12 +7,14 @@ import org.eclipse.mosaic.fed.application.app.AbstractApplication;
 import org.eclipse.mosaic.fed.application.app.api.CommunicationApplication;
 import org.eclipse.mosaic.fed.application.app.api.os.RoadSideUnitOperatingSystem;
 import org.eclipse.mosaic.fed.application.ambassador.simulation.communication.AdHocModuleConfiguration;
+import org.eclipse.mosaic.fed.application.ambassador.simulation.communication.CellModuleConfiguration;
 import org.eclipse.mosaic.fed.application.ambassador.simulation.communication.ReceivedV2xMessage;
 import org.eclipse.mosaic.interactions.communication.V2xMessageTransmission;
 import org.eclipse.mosaic.lib.enums.AdHocChannel;
 import org.eclipse.mosaic.lib.objects.v2x.MessageRouting;
 import org.eclipse.mosaic.lib.objects.v2x.V2xMessage;
 import org.eclipse.mosaic.lib.util.scheduling.Event;
+import org.eclipse.mosaic.rti.DATA;
 import org.eclipse.mosaic.rti.TIME;
 
 import java.util.*;
@@ -49,6 +51,10 @@ public final class RsuApp extends AbstractApplication<RoadSideUnitOperatingSyste
                 .distance(TX_RANGE_M)
                 .create()
         );
+        getOs().getCellModule().enable(new CellModuleConfiguration()
+            .maxDownlinkBitrate(50 * DATA.MEGABIT)
+            .maxUplinkBitrate(50 * DATA.MEGABIT)
+        );
         scheduleCleanup();
     }
 
@@ -56,6 +62,7 @@ public final class RsuApp extends AbstractApplication<RoadSideUnitOperatingSyste
     public void onShutdown() {
         printProcessedIds();
         getOs().getAdHocModule().disable();
+        getOs().getCellModule().disable();
     }
 
     @Override
@@ -92,9 +99,8 @@ public final class RsuApp extends AbstractApplication<RoadSideUnitOperatingSyste
     @Override public void onCamBuilding(org.eclipse.mosaic.fed.application.ambassador.simulation.communication.CamBuilder cb) { }
 
     private void forwardToFog(V2xMessage inner) {
-        MessageRouting routing = newRouting();
         RsuToFogMessage rtf = new RsuToFogMessage(
-            routing,
+            newRoutingCell(),
             "RTF-" + seqToFog.getAndIncrement(),
             getOs().getSimulationTime(),
             getOs().getId().toUpperCase(Locale.ROOT),
@@ -102,6 +108,7 @@ public final class RsuApp extends AbstractApplication<RoadSideUnitOperatingSyste
             inner
         );
         getOs().getAdHocModule().sendV2xMessage(rtf);
+        getOs().getCellModule().sendV2xMessage(rtf);
     }
 
     private void handleV2V(VehicleToVehicle v2v) {
@@ -152,13 +159,12 @@ public final class RsuApp extends AbstractApplication<RoadSideUnitOperatingSyste
             return;
         }
     
-        MessageRouting routing = newRouting();
         List<String> initialTrail = List.of(rsuId);
     
         FogEventMessage event = f2r.getCommandEvent();
     
         RsuToVehicleMessage rtv = new RsuToVehicleMessage(
-            routing,
+            newRoutingAdHoc(),
             "RTV-" + seqToVeh.getAndIncrement(),
             f2r.getTimestamp(),
             f2r.getExpiryTimestamp(),
@@ -171,13 +177,18 @@ public final class RsuApp extends AbstractApplication<RoadSideUnitOperatingSyste
     
         getOs().getAdHocModule().sendV2xMessage(rtv);
         logInfo("FORWARDED EVENT " + event.getUniqueId() + " TO " + dst + " VIA " + nextHop);
-    }    
+    }
 
-    private MessageRouting newRouting() {
+    private MessageRouting newRoutingAdHoc() {
         return getOs().getAdHocModule()
-                      .createMessageRouting()
-                      .viaChannel(AdHocChannel.CCH)
-                      .topoBroadCast();
+            .createMessageRouting()
+            .broadcast()
+            .topological()
+            .build();
+    }   
+
+    private MessageRouting newRoutingCell() {
+        return getOs().getCellModule().createMessageRouting().destination("FOG_1").build();
     }
 
     private String selectNextHop(String dst) {

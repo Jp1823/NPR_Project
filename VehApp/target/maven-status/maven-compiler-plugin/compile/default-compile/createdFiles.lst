@@ -3,6 +3,7 @@ pt\uminho\npr\tutorial\Messages\FogToRsuMessage.class
 pt\uminho\npr\tutorial\FogApp.class
 pt\uminho\npr\tutorial\Records\NodeRecord.class
 pt\uminho\npr\tutorial\Messages\VehicleToRsuACK.class
+pt\uminho\npr\tutorial\VehApp$1.class
 pt\uminho\npr\tutorial\VehApp.class
 pt\uminho\npr\tutorial\Messages\FogEventMessage.class
 pt\uminho\npr\tutorial\Messages\RsuToFogMessage.class

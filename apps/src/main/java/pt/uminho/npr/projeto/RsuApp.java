@@ -26,20 +26,20 @@ public final class RsuApp extends AbstractApplication<RoadSideUnitOperatingSyste
 
     private static final long   CLEAN_MS        = 1000 * TIME.MILLI_SECOND;
     private static final int    TX_POWER_DBM    = 23;
-    private static final double TX_RANGE_M      = 150.0;
+    private static final double TX_RANGE_M      = 120.0;
     private static final long   NEIGHBOR_TTL_MS = 1000 * TIME.MILLI_SECOND;
 
-    private final Map<String, NodeRecord>  neighbors = new HashMap<>();
-    private final Map<String, Set<String>> seenIds   = new HashMap<>();
-    private final Map<String,Integer> fairnessCount = new HashMap<>();
-    private final AtomicInteger            seqToVeh  = new AtomicInteger();
-    private final AtomicInteger            seqToFog  = new AtomicInteger();
+    private final Map<String, NodeRecord>  neighbors     = new HashMap<>();
+    private final Map<String, Set<String>> seenIds       = new HashMap<>();
+    private final Map<String,Integer>      fairnessCount = new HashMap<>();
+    private final AtomicInteger            seqToVeh      = new AtomicInteger();
+    private final AtomicInteger            seqToFog      = new AtomicInteger();
     
-    private static final double W_TWO_HOP     = 50.0;
-    private static final double W_PROXIMITY   = 30.0;
-    private static final double W_CONNECTIVITY= 10.0;
-    private static final double W_STABILITY   =  5.0;
-    private static final double W_FAIRNESS    =  5.0;
+    private static final double W_TWO_HOP      = 50.0;
+    private static final double W_PROXIMITY    = 30.0;
+    private static final double W_CONNECTIVITY = 10.0;
+    private static final double W_STABILITY    =  5.0;
+    private static final double W_FAIRNESS     =  5.0;
 
     @Override
     public void onStartup() {
@@ -73,9 +73,9 @@ public final class RsuApp extends AbstractApplication<RoadSideUnitOperatingSyste
 
     @Override
     public void onMessageReceived(ReceivedV2xMessage in) {
-        V2xMessage m   = in.getMessage();
-        String type    = m.getClass().getSimpleName();
-        String uid     = extractId(m);
+        V2xMessage m = in.getMessage();
+        String type  = m.getClass().getSimpleName();
+        String uid   = extractId(m);
 
         Set<String> seenForType = seenIds.computeIfAbsent(type, k -> new HashSet<>());
         if (!seenForType.add(uid)) {
@@ -83,12 +83,14 @@ public final class RsuApp extends AbstractApplication<RoadSideUnitOperatingSyste
         }
 
         if (m instanceof VehicleToVehicle v2v) {
+            //logInfo("NOT FORWARDING V2V MESSAGE TO FOG");
             forwardToFog(v2v);
             handleV2V(v2v);
 
         } else if (m instanceof VehicleToRsuACK ack) {
+            //logInfo("NOT FORWARDING V2V MESSAGE TO FOG");
             forwardToFog(ack);
-
+            
         } else if (m instanceof FogToRsuMessage f2r) {
             handleFogCommand(f2r);
         }
@@ -99,19 +101,19 @@ public final class RsuApp extends AbstractApplication<RoadSideUnitOperatingSyste
     @Override public void onCamBuilding(org.eclipse.mosaic.fed.application.ambassador.simulation.communication.CamBuilder cb) { }
 
     private void forwardToFog(V2xMessage inner) {
+        
         RsuToFogMessage rtf = new RsuToFogMessage(
             newRoutingCell(),
             "RTF-" + seqToFog.getAndIncrement(),
             getOs().getSimulationTime(),
             getOs().getId().toUpperCase(Locale.ROOT),
-            "RSU_2",
             inner
         );
-        getOs().getAdHocModule().sendV2xMessage(rtf);
         getOs().getCellModule().sendV2xMessage(rtf);
     }
 
     private void handleV2V(VehicleToVehicle v2v) {
+
         String vid = v2v.getSenderId().toUpperCase(Locale.ROOT);
         double d   = distance(getOs().getPosition(), v2v.getPosition());
         boolean reachable = d <= TX_RANGE_M;
@@ -136,12 +138,6 @@ public final class RsuApp extends AbstractApplication<RoadSideUnitOperatingSyste
 
     private void handleFogCommand(FogToRsuMessage f2r) {
         String rsuId = getOs().getId().toUpperCase(Locale.ROOT);
-    
-        if (!(f2r.getRsuTarget().equalsIgnoreCase(rsuId)
-              || f2r.getRsuTarget().equalsIgnoreCase("ALL"))) {
-            // LOG_INFO("FOG MESSAGE NOT ADDRESSED TO THIS RSU: IGNORING");
-            return;
-        }
     
         String dst = f2r.getVehicleTarget().toUpperCase(Locale.ROOT);
         NodeRecord rec = neighbors.get(dst);
@@ -188,7 +184,11 @@ public final class RsuApp extends AbstractApplication<RoadSideUnitOperatingSyste
     }   
 
     private MessageRouting newRoutingCell() {
-        return getOs().getCellModule().createMessageRouting().destination("FOG_1").build();
+        return getOs().getCellModule()
+            .createMessageRouting()
+            .destination("server_0")
+            .topological()
+            .build();
     }
 
     private String selectNextHop(String dst) {

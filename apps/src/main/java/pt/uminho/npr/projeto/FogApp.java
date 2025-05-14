@@ -25,12 +25,12 @@ import java.util.concurrent.atomic.AtomicLong;
 public final class FogApp extends AbstractApplication<ServerOperatingSystem>
         implements CommunicationApplication {
 
-    private static final long   TICK_MS                   = 1_000 * TIME.MILLI_SECOND;
-    private static final long   VEHICLE_STATE_TTL_MS      = 5_000 * TIME.MILLI_SECOND;
+    private static final long   TICK_MS               = 1_000 * TIME.MILLI_SECOND;
+    private static final long   VEHICLE_STATE_TTL_MS  = 5_000 * TIME.MILLI_SECOND;
 
-    private static final double EVENT_PROBABILITY         = 0.01;
-    private static final long   EVENT_TTL_MS              = 5_000 * TIME.MILLI_SECOND;
-    private static final int    MAX_AFFECTED_VEHICLES     = 3;
+    private static final double EVENT_PROBABILITY     = 0.001;
+    private static final long   EVENT_TTL_MS          = 5_000 * TIME.MILLI_SECOND;
+    private static final int    MAX_AFFECTED_VEHICLES = 1;
 
     private final AtomicLong eventSeq        = new AtomicLong();
     private final Map<String, VehicleToVehicle> vehicleStates = new HashMap<>();
@@ -152,16 +152,19 @@ public final class FogApp extends AbstractApplication<ServerOperatingSystem>
             ev.getExpiryTimestamp(),
             ev.getEventType(),
             ev.getFogSource(),
-            "ALL",
             vehicleTarget,
             ev
         );
         getOs().getCellModule().sendV2xMessage(msg);
         logInfo("SENT EVENT " + ev.getUniqueId() + " TO " + vehicleTarget);
     }
-
+    
     private MessageRouting newRouting() {
-        return getOs().getCellModule().createMessageRouting().destination("RSU_1").build();
+        return getOs().getCellModule()
+            .createMessageRouting()
+            .destination("rsu_0")
+            .topological()
+            .build();
     }
 
     private void scheduleTick() {

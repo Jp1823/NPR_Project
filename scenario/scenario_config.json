@@ -25,13 +25,9 @@
     },
     "federates": {
         "application": true,
-        "environment": false,
         "cell": true,
-        "ns3": false,
-        "omnetpp": false,
         "output": true,
         "sns": true,
-        "sumo": true,
-        "phabmacs": false
+        "sumo": true
     }
 }

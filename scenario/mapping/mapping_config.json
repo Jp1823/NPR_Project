@@ -29,11 +29,31 @@
   ],
   "vehicles": [
     {
-      "startingTime": "5 s",
-      "maxTime": "700 s",
-      "targetFlow": 20.0,
+      "startingTime": "2 s",
+      "targetFlow": 3000,
       "spawningMode": "CONSTANT",
-      "maxNumberVehicles": 20,
+      "maxNumberVehicles": 8,
+      "laneSelectionMode": "BEST",
+      "departSpeed": "0.0 m/s",
+      "departSpeedMode": "MAXIMUM",
+      "types": [
+        {
+          "name": "Car",
+          "weight": 1.0
+        }
+      ],
+      "departConnectionIndex": 0,
+      "pos": 0,
+      "route": "r_8",
+      "applications": [
+        "pt.uminho.npr.projeto.VehApp"
+      ]
+    },
+    {
+      "startingTime": "50 s",
+      "targetFlow": 3000,
+      "spawningMode": "CONSTANT",
+      "maxNumberVehicles": 8,
       "laneSelectionMode": "BEST",
       "departSpeed": "0.0 m/s",
       "departSpeedMode": "MAXIMUM",
@@ -57,13 +77,11 @@
         "latitude": 52.450304,
         "longitude": 13.301368
       },
-      "name": "RSU_5",
       "applications": [ "pt.uminho.npr.projeto.RsuApp" ]
     }
   ],
   "servers": [
     {
-      "id": "FOG_1",
       "group": "FOG",
       "applications": [ "pt.uminho.npr.projeto.FogApp" ]
     }

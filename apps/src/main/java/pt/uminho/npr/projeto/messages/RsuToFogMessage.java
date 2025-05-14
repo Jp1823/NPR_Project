@@ -11,20 +11,17 @@ public final class RsuToFogMessage extends V2xMessage {
     private final String uniqueId;
     private final long timestamp;
     private final String rsuIdentifier;
-    private final String receiverIdentifier;
     private final V2xMessage innerMessage;
 
     public RsuToFogMessage(MessageRouting routing,
                            String uniqueId,
                            long timestamp,
                            String rsuIdentifier,
-                           String receiverIdentifier,
                            V2xMessage innerMessage) {
         super(routing);
         this.uniqueId           = Objects.requireNonNull(uniqueId);
         this.timestamp          = timestamp;
         this.rsuIdentifier      = Objects.requireNonNull(rsuIdentifier);
-        this.receiverIdentifier = Objects.requireNonNull(receiverIdentifier);
         this.innerMessage       = Objects.requireNonNull(innerMessage);
     }
 
@@ -34,7 +31,6 @@ public final class RsuToFogMessage extends V2xMessage {
             out.writeUTF(uniqueId);
             out.writeLong(timestamp);
             out.writeUTF(rsuIdentifier);
-            out.writeUTF(receiverIdentifier);
 
             byte[] inner = innerMessage.getPayload().getBytes();
             out.writeInt(inner.length);
@@ -49,13 +45,11 @@ public final class RsuToFogMessage extends V2xMessage {
     public String getUniqueId() { return uniqueId; }
     public long getTimestamp() { return timestamp; }
     public String getRsuIdentifier() { return rsuIdentifier; }
-    public String getReceiverIdentifier() { return receiverIdentifier; }
     public V2xMessage getInnerMessage() { return innerMessage; }
 
     @Override public String toString() {
         return "RSU_TO_FOG_MESSAGE : UNIQUE_ID: " + uniqueId +
                " | RSU_IDENTIFIER: " + rsuIdentifier +
-               " | RECEIVER_IDENTIFIER: " + receiverIdentifier +
                " | INNER_MESSAGE_TYPE: " + innerMessage.getClass().getSimpleName() +
                " | TIMESTAMP: " + timestamp;
     }

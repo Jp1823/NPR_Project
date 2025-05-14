@@ -8,9 +8,9 @@
 `scenario-convert.sh --db2mosaic -d .\proj.db`
 
 Executar cenário:
-`./mosaic.bat -s scenario -w 0`
+`./mosaic.bat -s scenario -w 0 -b 1` -b opcional
 ou
-`mosaic.sh -s scenario -w 0`
+`mosaic.sh -s scenario -w 0 -b 1`
 
 Notas:
 - Alterar infos dos carros no `mapping/mapping_config.json`

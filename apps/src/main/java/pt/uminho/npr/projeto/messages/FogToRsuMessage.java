@@ -19,7 +19,6 @@ public final class FogToRsuMessage extends V2xMessage {
     private final long expiryTimestamp;
     private final String messageType;
     private final String fogIdentifier;
-    private final String rsuTarget;
     private final String vehicleTarget;
     private final FogEventMessage commandEvent;
 
@@ -29,7 +28,6 @@ public final class FogToRsuMessage extends V2xMessage {
                            long expiryTimestamp,
                            String messageType,
                            String fogIdentifier,
-                           String rsuTarget,
                            String vehicleTarget,
                            FogEventMessage commandEvent) {
         super(routing);
@@ -38,7 +36,6 @@ public final class FogToRsuMessage extends V2xMessage {
         this.expiryTimestamp = expiryTimestamp;
         this.messageType     = Objects.requireNonNull(messageType);
         this.fogIdentifier   = Objects.requireNonNull(fogIdentifier);
-        this.rsuTarget       = Objects.requireNonNull(rsuTarget);
         this.vehicleTarget   = Objects.requireNonNull(vehicleTarget);
         this.commandEvent    = Objects.requireNonNull(commandEvent);
     }
@@ -53,7 +50,6 @@ public final class FogToRsuMessage extends V2xMessage {
             out.writeLong(expiryTimestamp);
             out.writeUTF(messageType);
             out.writeUTF(fogIdentifier);
-            out.writeUTF(rsuTarget);
             out.writeUTF(vehicleTarget);
 
             byte[] evBytes = commandEvent.getPayload().getBytes();
@@ -71,7 +67,6 @@ public final class FogToRsuMessage extends V2xMessage {
     public long   getExpiryTimestamp()      { return expiryTimestamp; }
     public String getMessageType()          { return messageType; }
     public String getFogIdentifier()        { return fogIdentifier; }
-    public String getRsuTarget()            { return rsuTarget; }
     public String getVehicleTarget()        { return vehicleTarget; }
     public FogEventMessage getCommandEvent(){ return commandEvent; }
 
@@ -79,7 +74,6 @@ public final class FogToRsuMessage extends V2xMessage {
     public String toString() {
         return "FOG_TO_RSU_MESSAGE : UNIQUE_ID: " + uniqueId +
                " | FOG_IDENTIFIER: " + fogIdentifier +
-               " | RSU_TARGET: " + rsuTarget +
                " | VEHICLE_TARGET: " + vehicleTarget +
                " | MESSAGE_TYPE: " + messageType +
                " | TIMESTAMP: " + timestamp +

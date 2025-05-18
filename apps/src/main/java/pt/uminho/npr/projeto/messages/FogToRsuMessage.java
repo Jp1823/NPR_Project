@@ -9,9 +9,6 @@ import org.eclipse.mosaic.lib.objects.v2x.EncodedPayload;
 import org.eclipse.mosaic.lib.objects.v2x.MessageRouting;
 import org.eclipse.mosaic.lib.objects.v2x.V2xMessage;
 
-/**
- * FogToRsuMessage agora encapsula diretamente um FogEventMessage no campo commandEvent.
- */
 public final class FogToRsuMessage extends V2xMessage {
 
     private final String uniqueId;

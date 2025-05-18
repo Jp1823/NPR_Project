@@ -52,9 +52,7 @@ public final class FogEventMessage extends V2xMessage {
             out.writeLong(expiryTimestamp);
             out.writeUTF(fogSource);
             out.writeUTF(eventType);
-            // serializar localização
             SerializationUtils.encodeGeoPoint(out, location);
-            // serializar parâmetros
             out.writeInt(parameters.size());
             for (Map.Entry<String,String> e : parameters.entrySet()) {
                 out.writeUTF(e.getKey());

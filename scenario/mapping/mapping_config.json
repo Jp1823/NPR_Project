@@ -74,8 +74,99 @@
   "rsus": [
     {
       "position": {
+        "latitude": 52.451033,
+        "longitude": 13.295327
+      },
+      "applications": [ "pt.uminho.npr.projeto.RsuApp" ]
+    },
+    {
+      "position": {
+        "latitude": 52.451406,
+        "longitude": 13.298062
+      },
+      "applications": [ "pt.uminho.npr.projeto.RsuApp" ]
+    },
+    {
+      "position": {
+        "latitude": 52.452119,
+        "longitude": 13.301154
+      },
+      "applications": [ "pt.uminho.npr.projeto.RsuApp" ]
+    },
+    {
+      "position": {
+        "latitude": 52.452153,
+        "longitude": 13.304256
+      },
+      "applications": [ "pt.uminho.npr.projeto.RsuApp" ]
+    },
+    {
+      "position": {
         "latitude": 52.450304,
         "longitude": 13.301368
+      },
+      "applications": [ "pt.uminho.npr.projeto.RsuApp" ]
+    },
+    {
+      "position": {
+        "latitude": 52.450268,
+        "longitude": 13.304328
+      },
+      "applications": [ "pt.uminho.npr.projeto.RsuApp" ]
+    },
+    {
+      "position": {
+        "latitude": 52.448599,
+        "longitude": 13.305743
+      },
+      "applications": [ "pt.uminho.npr.projeto.RsuApp" ]
+    },
+    {
+      "position": {
+        "latitude": 52.448538,
+        "longitude": 13.302883
+      },
+      "applications": [ "pt.uminho.npr.projeto.RsuApp" ]
+    },
+    {
+      "position": {
+        "latitude": 52.447641,
+        "longitude": 13.301310
+      },
+      "applications": [ "pt.uminho.npr.projeto.RsuApp" ]
+    },
+    {
+      "position": {
+        "latitude": 52.449290,
+        "longitude": 13.298481
+      },
+      "applications": [ "pt.uminho.npr.projeto.RsuApp" ]
+    },
+    {
+      "position": {
+        "latitude": 52.446686,
+        "longitude": 13.298421
+      },
+      "applications": [ "pt.uminho.npr.projeto.RsuApp" ]
+    },
+    {
+      "position": {
+        "latitude": 52.446557,
+        "longitude": 13.294261
+      },
+      "applications": [ "pt.uminho.npr.projeto.RsuApp" ]
+    },
+    {
+      "position": {
+        "latitude": 52.448404,
+        "longitude": 13.295637
+      },
+      "applications": [ "pt.uminho.npr.projeto.RsuApp" ]
+    },
+    {
+      "position": {
+        "latitude": 52.449206,
+        "longitude": 13.292616
       },
       "applications": [ "pt.uminho.npr.projeto.RsuApp" ]
     }
@@ -83,6 +174,50 @@
   "servers": [
     {
       "group": "FOG",
+      "position": {
+        "latitude": 52.450347,
+        "longitude": 13.299260
+      },
+      "applications": [ "pt.uminho.npr.projeto.FogApp" ]
+    },
+    {
+      "group": "FOG",
+      "position": {
+        "latitude": 52.451348,
+        "longitude": 13.302894
+      },
+      "applications": [ "pt.uminho.npr.projeto.FogApp" ]
+    },
+    {
+      "group": "FOG",
+      "position": {
+        "latitude": 52.448733,
+        "longitude": 13.304369
+      },
+      "applications": [ "pt.uminho.npr.projeto.FogApp" ]
+    },
+    {
+      "group": "FOG",
+      "position": {
+        "latitude": 52.448128,
+        "longitude": 13.299091
+      },
+      "applications": [ "pt.uminho.npr.projeto.FogApp" ]
+    },
+    {
+      "group": "FOG",
+      "position": {
+        "latitude": 52.447646,
+        "longitude": 13.295392
+      },
+      "applications": [ "pt.uminho.npr.projeto.FogApp" ]
+    },
+    {
+      "group": "FOG",
+      "position": {
+        "latitude": 52.449871,
+        "longitude": 13.294694
+      },
       "applications": [ "pt.uminho.npr.projeto.FogApp" ]
     }
   ]

@@ -28,7 +28,7 @@ public final class FogApp extends AbstractApplication<ServerOperatingSystem>
     private static final long   TICK_MS               = 1_000 * TIME.MILLI_SECOND;
     private static final long   VEHICLE_STATE_TTL_MS  = 5_000 * TIME.MILLI_SECOND;
 
-    private static final double EVENT_PROBABILITY     = 0.001;
+    private static final double EVENT_PROBABILITY     = 0.05;
     private static final long   EVENT_TTL_MS          = 5_000 * TIME.MILLI_SECOND;
     private static final int    MAX_AFFECTED_VEHICLES = 1;
 
@@ -40,6 +40,10 @@ public final class FogApp extends AbstractApplication<ServerOperatingSystem>
 
     @Override
     public void onStartup() {
+        String fogId = getOs().getId().toUpperCase(Locale.ROOT);
+        logInfo(String.format(
+            "FOG_INITIALIZATION : FOG_ID: %s", fogId
+        ));
         getOs().getCellModule().enable(new CellModuleConfiguration()
             .maxDownlinkBitrate(50 * DATA.MEGABIT)
             .maxUplinkBitrate(50 * DATA.MEGABIT)
@@ -49,6 +53,10 @@ public final class FogApp extends AbstractApplication<ServerOperatingSystem>
 
     @Override
     public void onShutdown() {
+        String fogId = getOs().getId().toUpperCase(Locale.ROOT);
+        logInfo(String.format(
+            "FOG_SHUTDOWN : FOG_ID: %s", fogId
+        ));
         getOs().getCellModule().disable();
     }
 
@@ -65,9 +73,9 @@ public final class FogApp extends AbstractApplication<ServerOperatingSystem>
         if (msg instanceof RsuToFogMessage rtf && seenRsuMessages.add(rtf.getUniqueId())) {
             V2xMessage inner = rtf.getInnerMessage();
             if (inner instanceof VehicleToVehicle v2v) {
-                storeVehicleState(v2v);
+                vehicleStates.put(v2v.getSenderId().toUpperCase(Locale.ROOT), v2v);
             } else if (inner instanceof VehicleToRsuACK ack) {
-                handleAck(ack);
+                seenAcks.add(ack.getUniqueId());
             }
         }
     }
@@ -75,14 +83,6 @@ public final class FogApp extends AbstractApplication<ServerOperatingSystem>
     @Override public void onMessageTransmitted(V2xMessageTransmission tx) { }
     @Override public void onAcknowledgementReceived(org.eclipse.mosaic.fed.application.ambassador.simulation.communication.ReceivedAcknowledgement ack) { }
     @Override public void onCamBuilding(org.eclipse.mosaic.fed.application.ambassador.simulation.communication.CamBuilder cb) { }
-
-    private void storeVehicleState(VehicleToVehicle v2v) {
-        vehicleStates.put(v2v.getSenderId().toUpperCase(Locale.ROOT), v2v);
-    }
-
-    private void handleAck(VehicleToRsuACK ack) {
-        seenAcks.add(ack.getUniqueId());
-    }
 
     private void purgeVehicleStates() {
         long now = getOs().getSimulationTime();
@@ -128,8 +128,13 @@ public final class FogApp extends AbstractApplication<ServerOperatingSystem>
         }
 
         for (String target : affected) {
-            String id = "EVT-" + eventSeq.getAndIncrement();
-            logInfo("GENERATING EVENT " + id + " TYPE " + eventType + " AT " + location + " FOR " + target);
+            String id = String.format(
+                "EVT-%s-%s-%d",
+                fogId, target, eventSeq.getAndIncrement()
+            );
+            logInfo(String.format(
+                "EVENT_GENERATED : UNIQUE_ID: %s | EVENT_TYPE: %s", id, eventType
+            ));
             FogEventMessage ev = new FogEventMessage(
                 newRouting(),
                 id,
@@ -156,9 +161,11 @@ public final class FogApp extends AbstractApplication<ServerOperatingSystem>
             ev
         );
         getOs().getCellModule().sendV2xMessage(msg);
-        logInfo("SENT EVENT " + ev.getUniqueId() + " TO " + vehicleTarget);
+        logInfo(String.format(
+            "EVENT_SENT : UNIQUE_ID: %s | VEHICLE_TARGET: %s", ev.getUniqueId(), vehicleTarget
+        ));
     }
-    
+
     private MessageRouting newRouting() {
         return getOs().getCellModule()
             .createMessageRouting()
@@ -175,7 +182,9 @@ public final class FogApp extends AbstractApplication<ServerOperatingSystem>
     }
 
     private void logInfo(String message) {
-        getLog().infoSimTime(this,
-            "[" + getOs().getId().toUpperCase() + "] [INFO]  " + message);
+        getLog().infoSimTime(
+            this,
+            "[" + getOs().getId().toUpperCase(Locale.ROOT) + "] [INFO] " + message
+        );
     }
 }

@@ -34,6 +34,9 @@ public final class RsuApp extends AbstractApplication<RoadSideUnitOperatingSyste
     private final Map<String,Integer>      fairnessCount = new HashMap<>();
     private final AtomicInteger            seqToVeh      = new AtomicInteger();
     private final AtomicInteger            seqToFog      = new AtomicInteger();
+    private final AtomicInteger            seqAlert      = new AtomicInteger();
+    private final Set<String>              seenAlerts    = new HashSet<>();
+    private String fogId;
     
     private static final double W_TWO_HOP      = 50.0;
     private static final double W_PROXIMITY    = 30.0;
@@ -41,8 +44,38 @@ public final class RsuApp extends AbstractApplication<RoadSideUnitOperatingSyste
     private static final double W_STABILITY    =  5.0;
     private static final double W_FAIRNESS     =  5.0;
 
+    private static final Map<String,String> RSU_TO_FOG = new HashMap<>();
+    static {
+        RSU_TO_FOG.put("RSU_1", "server_0");
+        RSU_TO_FOG.put("RSU_4", "server_0");
+        RSU_TO_FOG.put("RSU_9", "server_0");
+
+        RSU_TO_FOG.put("RSU_2", "server_1");
+        RSU_TO_FOG.put("RSU_3", "server_1");
+        RSU_TO_FOG.put("RSU_5", "server_1");
+
+        RSU_TO_FOG.put("RSU_6", "server_2");
+        RSU_TO_FOG.put("RSU_7", "server_2");
+
+        RSU_TO_FOG.put("RSU_8",  "server_3");
+        RSU_TO_FOG.put("RSU_10", "server_3");
+
+        RSU_TO_FOG.put("RSU_11", "server_4");
+        RSU_TO_FOG.put("RSU_12", "server_4");
+
+        RSU_TO_FOG.put("RSU_13", "server_5");
+        RSU_TO_FOG.put("RSU_0",  "server_5");
+    }
+
+    private static final List<String> ALL_RSUS = List.of(
+        "rsu_0","rsu_1","rsu_2","rsu_3","rsu_4","rsu_5","rsu_6",
+        "rsu_7","rsu_8","rsu_9","rsu_10","rsu_11","rsu_12","rsu_13"
+    );
+
     @Override
     public void onStartup() {
+        String rsuId = getOs().getId().toUpperCase(Locale.ROOT);
+        logInfo(String.format("RSU_INITIALIZATION : RSU_ID: %s", rsuId));
         getOs().getAdHocModule().enable(
             new AdHocModuleConfiguration()
                 .addRadio()
@@ -55,6 +88,8 @@ public final class RsuApp extends AbstractApplication<RoadSideUnitOperatingSyste
             .maxDownlinkBitrate(50 * DATA.MEGABIT)
             .maxUplinkBitrate(50 * DATA.MEGABIT)
         );
+        String myId = getOs().getId().toUpperCase(Locale.ROOT);
+        fogId = RSU_TO_FOG.get(myId);
         scheduleCleanup();
     }
 
@@ -79,20 +114,32 @@ public final class RsuApp extends AbstractApplication<RoadSideUnitOperatingSyste
 
         Set<String> seenForType = seenIds.computeIfAbsent(type, k -> new HashSet<>());
         if (!seenForType.add(uid)) {
+            // logInfo("DUPLICATE MESSAGE ID = " + uid + " DETECTED – DISCARDED");
             return;
         }
 
         if (m instanceof VehicleToVehicle v2v) {
-            //logInfo("NOT FORWARDING V2V MESSAGE TO FOG");
+            // logInfo("PROCESSING VEHICLE TO VEHICLE MESSAGE ID = " + v2v.getMessageId());
             forwardToFog(v2v);
             handleV2V(v2v);
 
         } else if (m instanceof VehicleToRsuACK ack) {
-            //logInfo("NOT FORWARDING V2V MESSAGE TO FOG");
+            logInfo(String.format(
+                "ACK_RECEIVED : UNIQUE_ID: %s | ORIGINAL_ID: %s", ack.getUniqueId(), ack.getOriginalMessageId()
+            ));
             forwardToFog(ack);
             
         } else if (m instanceof FogToRsuMessage f2r) {
+            logInfo(String.format(
+                "FOG_COMMAND_RECEIVED : UNIQUE_ID: %s | EVENT_TYPE: %s", f2r.getUniqueId(), f2r.getCommandEvent().getEventType()
+            ));
             handleFogCommand(f2r);
+            emitRsuAlert(f2r.getCommandEvent());
+        } else if (m instanceof RsuAlertMessage alert && seenAlerts.add(alert.getUniqueId())) {
+            logInfo(String.format(
+                "RSU_ALERT_RECEIVED : UNIQUE_ID: %s | ORIGIN: %s", alert.getUniqueId(), alert.getOriginRsu()
+            ));
+            handleLocalRsuAlert(alert);
         }
     }
 
@@ -101,15 +148,17 @@ public final class RsuApp extends AbstractApplication<RoadSideUnitOperatingSyste
     @Override public void onCamBuilding(org.eclipse.mosaic.fed.application.ambassador.simulation.communication.CamBuilder cb) { }
 
     private void forwardToFog(V2xMessage inner) {
-        
+        String rsuId = getOs().getId().toUpperCase(Locale.ROOT);
+        MessageRouting routing = newRoutingCell();
         RsuToFogMessage rtf = new RsuToFogMessage(
-            newRoutingCell(),
-            "RTF-" + seqToFog.getAndIncrement(),
+            routing,
+            String.format("RTF-%s-%s-%d", rsuId, fogId, seqToFog.getAndIncrement()),
             getOs().getSimulationTime(),
             getOs().getId().toUpperCase(Locale.ROOT),
             inner
         );
         getOs().getCellModule().sendV2xMessage(rtf);
+        // logInfo("RTF MESSAGE ID = " + rtf.getUniqueId() + " SENT TO FOG ID = " + fogId);
     }
 
     private void handleV2V(VehicleToVehicle v2v) {
@@ -144,14 +193,12 @@ public final class RsuApp extends AbstractApplication<RoadSideUnitOperatingSyste
     
         String nextHop = null;
         if (rec != null && rec.isReachableToRsu()) {
-            // LOG_INFO("DIRECT DELIVERY TO " + dst);
             nextHop = dst;
         } else {
             nextHop = selectNextHop(dst);
         }
     
         if (nextHop == null) {
-            // LOG_INFO("NO ROUTE OR DIRECT REACH FOR " + dst);
             return;
         }
     
@@ -161,7 +208,7 @@ public final class RsuApp extends AbstractApplication<RoadSideUnitOperatingSyste
     
         RsuToVehicleMessage rtv = new RsuToVehicleMessage(
             newRoutingAdHoc(),
-            "RTV-" + seqToVeh.getAndIncrement(),
+            String.format("RTV-%s-%s-%d", rsuId, dst, seqToVeh.getAndIncrement()),
             f2r.getTimestamp(),
             f2r.getExpiryTimestamp(),
             rsuId,
@@ -172,7 +219,34 @@ public final class RsuApp extends AbstractApplication<RoadSideUnitOperatingSyste
         );
     
         getOs().getAdHocModule().sendV2xMessage(rtv);
-        logInfo("FORWARDED EVENT " + event.getUniqueId() + " TO " + dst + " VIA " + nextHop);
+        logInfo(String.format(
+            "EVENT_FORWARDED_TO_VEHICLE : UNIQUE_ID: %s | VEHICLE_TARGET: %s | NEXT_HOP: %s",
+            f2r.getCommandEvent().getUniqueId(), dst, nextHop
+        ));
+    }
+
+    private void emitRsuAlert(FogEventMessage ev) {
+        String origin = getOs().getId().toUpperCase(Locale.ROOT);
+        for (String target : ALL_RSUS) {
+            if (target.equalsIgnoreCase(origin)) continue;
+            String alertId = String.format("ALERT-%s-%s-%d", origin, target.toUpperCase(), seqAlert.getAndIncrement());
+            if (!seenAlerts.add(alertId)) continue;
+            RsuAlertMessage alert = new RsuAlertMessage(
+                newRoutingToRsu(target),
+                alertId,
+                getOs().getSimulationTime(),
+                origin,
+                ev
+            );
+            getOs().getCellModule().sendV2xMessage(alert);
+            logInfo(String.format(
+                "ALERT_EMITTED : UNIQUE_ID: %s | TARGET_RSU: %s", alertId, target.toUpperCase()
+            ));
+        }
+    }
+
+    private void handleLocalRsuAlert(RsuAlertMessage alert) {
+        return;
     }
 
     private MessageRouting newRoutingAdHoc() {
@@ -186,7 +260,15 @@ public final class RsuApp extends AbstractApplication<RoadSideUnitOperatingSyste
     private MessageRouting newRoutingCell() {
         return getOs().getCellModule()
             .createMessageRouting()
-            .destination("server_0")
+            .destination(fogId)
+            .topological()
+            .build();
+    }
+
+    private MessageRouting newRoutingToRsu(String rsuDest) {
+        return getOs().getCellModule()
+            .createMessageRouting()
+            .destination(rsuDest)
             .topological()
             .build();
     }
@@ -298,31 +380,37 @@ public final class RsuApp extends AbstractApplication<RoadSideUnitOperatingSyste
     */
     
     private void printProcessedIds() {
-        seenIds.keySet().stream().sorted().forEach(type -> {
-            Set<String> ids = seenIds.get(type);
-            String upType = type.toUpperCase();
-            logInfo("PROCESSED_" + upType + "_IDS : COUNT = " + ids.size());
-            ids.stream().sorted((a, b) -> {
+        /*
+        Set<String> v2vIds = seenIds.getOrDefault("VehicleToVehicle", Collections.emptySet());
+        logInfo("PROCESSED_V2V_IDS : COUNT = " + v2vIds.size());
+        v2vIds.stream()
+            .sorted((a, b) -> {
                 String[] pa = a.split("-");
                 String[] pb = b.split("-");
-                int cmp = pa.length > 1 && pb.length > 1
-                          ? pa[1].compareTo(pb[1])
-                          : a.compareTo(b);
+                int cmp = pa[1].compareTo(pb[1]);
                 if (cmp != 0) return cmp;
-                if (pa.length > 2 && pb.length > 2) {
-                    try {
-                        return Integer.compare(
-                            Integer.parseInt(pa[2]),
-                            Integer.parseInt(pb[2])
-                        );
-                    } catch (NumberFormatException ignored) {}
-                }
-                return a.compareTo(b);
-            }).forEach(id ->
-                logInfo("PROCESSED_" + upType + "_ID : " + id)
-            );
-        });
-    }
+                return Integer.compare(
+                    Integer.parseInt(pa[2]),
+                    Integer.parseInt(pb[2])
+                );
+            })
+            .forEach(id -> logInfo("PROCESSED_V2V_ID : " + id));
+        */
+        Set<String> ackIds = seenIds.getOrDefault("VehicleToRsuACK", Collections.emptySet());
+        logInfo("PROCESSED_ACK_IDS : COUNT = " + ackIds.size());
+        ackIds.stream()
+            .sorted((a, b) -> {
+                String[] pa = a.split("-");
+                String[] pb = b.split("-");
+                int cmp = pa[1].compareTo(pb[1]);
+                if (cmp != 0) return cmp;
+                return Integer.compare(
+                    Integer.parseInt(pa[2]),
+                    Integer.parseInt(pb[2])
+                );
+            })
+            .forEach(id -> logInfo("PROCESSED_ACK_ID : " + id));
+    }    
 
     private void logInfo(String m) {
         getLog().infoSimTime(this, "[" + getOs().getId().toUpperCase(Locale.ROOT) + "] [INFO]  " + m);

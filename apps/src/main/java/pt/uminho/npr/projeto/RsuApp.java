@@ -18,7 +18,6 @@ import pt.uminho.npr.projeto.messages.*;
 import pt.uminho.npr.projeto.records.NodeRecord;
 
 import java.util.*;
-import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
 
 public final class RsuApp extends AbstractApplication<RoadSideUnitOperatingSystem>
@@ -35,21 +34,16 @@ public final class RsuApp extends AbstractApplication<RoadSideUnitOperatingSyste
     private static final double W_STABILITY    =  5.0;
     private static final double W_FAIRNESS     =  5.0;
 
-    private final Map<String, NodeRecord>  neighbors     = new HashMap<>();
-    private final Map<String, Set<String>> seenIds       = new HashMap<>();
-    private final Map<String,Integer>      fairnessCount = new HashMap<>();
-    private final AtomicInteger            seqToVeh      = new AtomicInteger();
-    private final AtomicInteger            seqToFog      = new AtomicInteger();
-
+    private final Map<String, NodeRecord>   neighbors     = new HashMap<>();
+    private final Map<String, Set<Integer>> seenIds       = new HashMap<>();
+    private final Map<String, Integer>      fairnessCount = new HashMap<>();
     private String rsuId;
-    private String fogId;
 
     @Override
     public void onStartup() {
         
-        // Initialize RSU and FOG IDs
-        rsuId = getOs().getId().toUpperCase(Locale.ROOT);
-        fogId = "server_0";
+        // Initialize RSU ID
+        rsuId = getOs().getId();
         
         // Enable communication modules
         getOs().getAdHocModule().enable(
@@ -65,13 +59,12 @@ public final class RsuApp extends AbstractApplication<RoadSideUnitOperatingSyste
             .maxUplinkBitrate(50 * DATA.MEGABIT)
         );
         
-        scheduleCleanup();
+        scheduleEvent();
         logInfo("RSU_INITIALIZATION");
     }
 
     @Override
     public void onShutdown() {
-        printProcessedIds();
         getOs().getAdHocModule().disable();
         getOs().getCellModule().disable();
         logInfo("RSU_SHUTDOWN");
@@ -80,49 +73,43 @@ public final class RsuApp extends AbstractApplication<RoadSideUnitOperatingSyste
     @Override
     public void processEvent(Event e) {
         purgeNeighbors();
-        scheduleCleanup();
+        scheduleEvent();
     }
 
     @Override
     public void onMessageReceived(ReceivedV2xMessage in) {
-        V2xMessage m = in.getMessage();
-        String type  = m.getClass().getSimpleName();
-        String uid   = extractId(m);
+        V2xMessage msg = in.getMessage();
+        String type    = msg.getClass().getSimpleName();
 
-        Set<String> seenForType = seenIds.computeIfAbsent(type, k -> new HashSet<>());
-        if (!seenForType.add(uid)) {
+        Set<Integer> seenForType = seenIds.computeIfAbsent(type, k -> new HashSet<>());
+        if (!seenForType.add(msg.getId())) {
             // logInfo("DUPLICATE MESSAGE ID = " + uid + " DETECTED – DISCARDED");
             return;
         }
 
-        if (m instanceof VehicleToVehicle v2v) {
+        if (msg instanceof CamMessage v2v) {
             // logInfo("PROCESSING VEHICLE TO VEHICLE MESSAGE ID = " + v2v.getMessageId());
             forwardToFog(v2v);
             handleV2V(v2v);
 
-        } else if (m instanceof VehicleToRsuACK ack) {
+        } else if (msg instanceof VehicleToRsuACK ack) {
             logInfo(String.format(
-                "ACK_RECEIVED : UNIQUE_ID: %s | ORIGINAL_ID: %s", ack.getUniqueId(), ack.getOriginalMessageId()
+                "ACK_RECEIVED : UNIQUE_ID: %s | ORIGINAL_ID: %s", ack.getId(), ack.getOriginalMessageId()
             ));
             forwardToFog(ack);
             
-        } else if (m instanceof FogToRsuMessage f2r) {
+        } else if (msg instanceof FogToRsuMessage f2r) {
             logInfo(String.format(
-                "FOG_COMMAND_RECEIVED : UNIQUE_ID: %s | EVENT_TYPE: %s", f2r.getUniqueId(), f2r.getCommandEvent().getEventType()
+                "FOG_COMMAND_RECEIVED : UNIQUE_ID: %s | EVENT_TYPE: %s", f2r.getId(), f2r.getCommandEvent().getEventType()
             ));
             handleFogCommand(f2r);
         }
     }
 
-    @Override public void onMessageTransmitted(V2xMessageTransmission tx) { }
-    @Override public void onAcknowledgementReceived(org.eclipse.mosaic.fed.application.ambassador.simulation.communication.ReceivedAcknowledgement ack) { }
-    @Override public void onCamBuilding(org.eclipse.mosaic.fed.application.ambassador.simulation.communication.CamBuilder cb) { }
-
     private void forwardToFog(V2xMessage inner) {
         MessageRouting routing = newRoutingCell();
         RsuToFogMessage rtf = new RsuToFogMessage(
             routing,
-            String.format("RTF-%s-%s-%d", rsuId, fogId, seqToFog.getAndIncrement()),
             getOs().getSimulationTime(),
             rsuId,
             inner
@@ -131,10 +118,10 @@ public final class RsuApp extends AbstractApplication<RoadSideUnitOperatingSyste
         // logInfo("RTF MESSAGE ID = " + rtf.getUniqueId() + " SENT TO FOG ID = " + fogId);
     }
 
-    private void handleV2V(VehicleToVehicle v2v) {
+    private void handleV2V(CamMessage v2v) {
 
-        String vid = v2v.getSenderId().toUpperCase(Locale.ROOT);
-        double d   = distance(getOs().getPosition(), v2v.getPosition());
+        String vid = v2v.getSenderId();
+        double d   = getOs().getPosition().distanceTo(v2v.getPosition());
         boolean reachable = d <= TX_RANGE_M;
         List<String> reachableNeighbors = new ArrayList<>(v2v.getNeighborGraph().keySet());
         List<String> directNeighbors = reachableNeighbors.stream()
@@ -157,7 +144,7 @@ public final class RsuApp extends AbstractApplication<RoadSideUnitOperatingSyste
 
     private void handleFogCommand(FogToRsuMessage f2r) {
         
-        String dst = f2r.getVehicleTarget().toUpperCase(Locale.ROOT);
+        String dst = f2r.getVehicleTarget();
         NodeRecord rec = neighbors.get(dst);
     
         String nextHop = null;
@@ -177,7 +164,6 @@ public final class RsuApp extends AbstractApplication<RoadSideUnitOperatingSyste
     
         RsuToVehicleMessage rtv = new RsuToVehicleMessage(
             newRoutingAdHoc(),
-            String.format("RTV-%s-%s-%d", rsuId, dst, seqToVeh.getAndIncrement()),
             f2r.getTimestamp(),
             f2r.getExpiryTimestamp(),
             rsuId,
@@ -190,7 +176,7 @@ public final class RsuApp extends AbstractApplication<RoadSideUnitOperatingSyste
         getOs().getAdHocModule().sendV2xMessage(rtv);
         logInfo(String.format(
             "EVENT_FORWARDED_TO_VEHICLE : UNIQUE_ID: %s | VEHICLE_TARGET: %s | NEXT_HOP: %s",
-            f2r.getCommandEvent().getUniqueId(), dst, nextHop
+            f2r.getCommandEvent().getId(), dst, nextHop
         ));
     }
 
@@ -205,7 +191,7 @@ public final class RsuApp extends AbstractApplication<RoadSideUnitOperatingSyste
     private MessageRouting newRoutingCell() {
         return getOs().getCellModule()
             .createMessageRouting()
-            .destination(fogId)
+            .destination("server_0")
             .topological()
             .build();
     }
@@ -274,29 +260,7 @@ public final class RsuApp extends AbstractApplication<RoadSideUnitOperatingSyste
         );
     }
 
-    private String extractId(V2xMessage m) {
-        if (m instanceof VehicleToVehicle v2v)      return v2v.getMessageId();
-        if (m instanceof VehicleToRsuACK ack)       return ack.getUniqueId();
-        if (m instanceof FogToRsuMessage f2r)       return f2r.getUniqueId();
-        if (m instanceof RsuToVehicleMessage rtv)   return rtv.getUniqueId();
-        if (m instanceof RsuToFogMessage rtf)       return rtf.getUniqueId();
-        return UUID.randomUUID().toString();
-    }
-
-    private double distance(org.eclipse.mosaic.lib.geo.GeoPoint a, org.eclipse.mosaic.lib.geo.GeoPoint b) {
-        double r = 6_371_000;
-        double dLat = Math.toRadians(b.getLatitude() - a.getLatitude());
-        double dLon = Math.toRadians(b.getLongitude() - a.getLongitude());
-        double sLat = Math.sin(dLat / 2);
-        double sLon = Math.sin(dLon / 2);
-        double h = sLat * sLat +
-                   Math.cos(Math.toRadians(a.getLatitude())) *
-                   Math.cos(Math.toRadians(b.getLatitude())) *
-                   sLon * sLon;
-        return 2 * r * Math.atan2(Math.sqrt(h), Math.sqrt(1 - h));
-    }
-
-    private void scheduleCleanup() {
+    private void scheduleEvent() {
         long next = getOs().getSimulationTime() + CLEAN_MS;
         getOs().getEventManager().addEvent(next, this);
     }
@@ -315,39 +279,10 @@ public final class RsuApp extends AbstractApplication<RoadSideUnitOperatingSyste
         });
     }
     */
-    
-    private void printProcessedIds() {
-        /*
-        Set<String> v2vIds = seenIds.getOrDefault("VehicleToVehicle", Collections.emptySet());
-        logInfo("PROCESSED_V2V_IDS : COUNT = " + v2vIds.size());
-        v2vIds.stream()
-            .sorted((a, b) -> {
-                String[] pa = a.split("-");
-                String[] pb = b.split("-");
-                int cmp = pa[1].compareTo(pb[1]);
-                if (cmp != 0) return cmp;
-                return Integer.compare(
-                    Integer.parseInt(pa[2]),
-                    Integer.parseInt(pb[2])
-                );
-            })
-            .forEach(id -> logInfo("PROCESSED_V2V_ID : " + id));
-        */
-        Set<String> ackIds = seenIds.getOrDefault("VehicleToRsuACK", Collections.emptySet());
-        logInfo("PROCESSED_ACK_IDS : COUNT = " + ackIds.size());
-        ackIds.stream()
-            .sorted((a, b) -> {
-                String[] pa = a.split("-");
-                String[] pb = b.split("-");
-                int cmp = pa[1].compareTo(pb[1]);
-                if (cmp != 0) return cmp;
-                return Integer.compare(
-                    Integer.parseInt(pa[2]),
-                    Integer.parseInt(pb[2])
-                );
-            })
-            .forEach(id -> logInfo("PROCESSED_ACK_ID : " + id));
-    }    
+
+    @Override public void onMessageTransmitted(V2xMessageTransmission tx) { /* No action required */ }
+    @Override public void onAcknowledgementReceived(org.eclipse.mosaic.fed.application.ambassador.simulation.communication.ReceivedAcknowledgement ack) { /* No action required */ }
+    @Override public void onCamBuilding(org.eclipse.mosaic.fed.application.ambassador.simulation.communication.CamBuilder cb) { /* No action required */ }
 
     private void logInfo(String m) {
         getLog().infoSimTime(this, "[" + rsuId + "] [INFO]  " + m);

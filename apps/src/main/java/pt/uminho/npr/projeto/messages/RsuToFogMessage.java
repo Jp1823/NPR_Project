@@ -8,18 +8,15 @@ import org.eclipse.mosaic.lib.objects.v2x.*;
 
 public final class RsuToFogMessage extends V2xMessage {
 
-    private final String uniqueId;
     private final long timestamp;
     private final String rsuIdentifier;
     private final V2xMessage innerMessage;
 
     public RsuToFogMessage(MessageRouting routing,
-                           String uniqueId,
                            long timestamp,
                            String rsuIdentifier,
                            V2xMessage innerMessage) {
         super(routing);
-        this.uniqueId           = Objects.requireNonNull(uniqueId);
         this.timestamp          = timestamp;
         this.rsuIdentifier      = Objects.requireNonNull(rsuIdentifier);
         this.innerMessage       = Objects.requireNonNull(innerMessage);
@@ -28,7 +25,6 @@ public final class RsuToFogMessage extends V2xMessage {
     @Nonnull @Override public EncodedPayload getPayload() {
         try (ByteArrayOutputStream buf = new ByteArrayOutputStream();
              DataOutputStream out = new DataOutputStream(buf)) {
-            out.writeUTF(uniqueId);
             out.writeLong(timestamp);
             out.writeUTF(rsuIdentifier);
 
@@ -42,13 +38,12 @@ public final class RsuToFogMessage extends V2xMessage {
         }
     }
 
-    public String getUniqueId() { return uniqueId; }
     public long getTimestamp() { return timestamp; }
     public String getRsuIdentifier() { return rsuIdentifier; }
     public V2xMessage getInnerMessage() { return innerMessage; }
 
     @Override public String toString() {
-        return "RSU_TO_FOG_MESSAGE : UNIQUE_ID: " + uniqueId +
+        return "RSU_TO_FOG_MESSAGE :" +
                " | RSU_IDENTIFIER: " + rsuIdentifier +
                " | INNER_MESSAGE_TYPE: " + innerMessage.getClass().getSimpleName() +
                " | TIMESTAMP: " + timestamp;

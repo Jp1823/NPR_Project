@@ -16,7 +16,6 @@ import org.eclipse.mosaic.lib.util.SerializationUtils;
 
 public final class FogEventMessage extends V2xMessage {
 
-    private final String               uniqueId;
     private final long                 timestamp;
     private final long                 expiryTimestamp;
     private final String               fogSource;
@@ -25,7 +24,6 @@ public final class FogEventMessage extends V2xMessage {
     private final Map<String,String>   parameters;
 
     public FogEventMessage(MessageRouting routing,
-                           String uniqueId,
                            long timestamp,
                            long expiryTimestamp,
                            String fogSource,
@@ -33,7 +31,6 @@ public final class FogEventMessage extends V2xMessage {
                            GeoPoint location,
                            Map<String,String> parameters) {
         super(routing);
-        this.uniqueId        = Objects.requireNonNull(uniqueId);
         this.timestamp       = timestamp;
         this.expiryTimestamp = expiryTimestamp;
         this.fogSource       = Objects.requireNonNull(fogSource);
@@ -47,7 +44,6 @@ public final class FogEventMessage extends V2xMessage {
         try (ByteArrayOutputStream buf = new ByteArrayOutputStream();
              DataOutputStream out = new DataOutputStream(buf)) {
 
-            out.writeUTF(uniqueId);
             out.writeLong(timestamp);
             out.writeLong(expiryTimestamp);
             out.writeUTF(fogSource);
@@ -65,7 +61,6 @@ public final class FogEventMessage extends V2xMessage {
         }
     }
 
-    public String getUniqueId()             { return uniqueId; }
     public long   getTimestamp()            { return timestamp; }
     public long   getExpiryTimestamp()      { return expiryTimestamp; }
     public String getFogSource()            { return fogSource; }
@@ -75,7 +70,7 @@ public final class FogEventMessage extends V2xMessage {
 
     @Override
     public String toString() {
-        return "FOG_EVENT_MESSAGE : UNIQUE_ID: "     + uniqueId +
+        return "FOG_EVENT_MESSAGE :" +
                " | FOG_SOURCE: "       + fogSource +
                " | EVENT_TYPE: "       + eventType +
                " | LOCATION: "         + location +

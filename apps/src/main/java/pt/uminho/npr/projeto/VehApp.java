@@ -5,8 +5,6 @@ import org.eclipse.mosaic.fed.application.app.api.CommunicationApplication;
 import org.eclipse.mosaic.fed.application.app.api.VehicleApplication;
 import org.eclipse.mosaic.fed.application.app.api.os.VehicleOperatingSystem;
 import org.eclipse.mosaic.fed.application.ambassador.simulation.communication.AdHocModuleConfiguration;
-import org.eclipse.mosaic.fed.application.ambassador.simulation.communication.CamBuilder;
-import org.eclipse.mosaic.fed.application.ambassador.simulation.communication.ReceivedAcknowledgement;
 import org.eclipse.mosaic.fed.application.ambassador.simulation.communication.ReceivedV2xMessage;
 import org.eclipse.mosaic.interactions.communication.V2xMessageTransmission;
 import org.eclipse.mosaic.interactions.vehicle.VehicleLaneChange.VehicleLaneChangeMode;
@@ -59,11 +57,9 @@ public final class VehApp extends AbstractApplication<VehicleOperatingSystem>
     
     private final Map<String, NodeRecord> neighborGraph = new HashMap<>();
     
-    private final Set<String>   processedV2V = new HashSet<>();
-    private final Set<String>   processedAck = new HashSet<>();
-    private final AtomicInteger v2vSeq       = new AtomicInteger();
-    private final AtomicInteger ackSeq       = new AtomicInteger();
-
+    private final Set<Integer>   processedV2V = new HashSet<>();
+    private final Set<Integer>   processedAck = new HashSet<>();
+    
     private String  vehId;
     private boolean ready = false;
     private double  heading = 0.0;
@@ -80,7 +76,7 @@ public final class VehApp extends AbstractApplication<VehicleOperatingSystem>
     public void onStartup() {
 
         // Initialize vehicle ID
-        vehId = getOs().getId().toUpperCase(Locale.ROOT);
+        vehId = getOs().getId();
 
         // Enable ad-hoc communication module
         getOs().getAdHocModule().enable(
@@ -92,13 +88,12 @@ public final class VehApp extends AbstractApplication<VehicleOperatingSystem>
                 .create()
         );
 
-        scheduleNext();
+        scheduleEvent();
         logInfo("VEHICLE_INITIALIZATION");
     }
 
     @Override
     public void onShutdown() {
-        printProcessedIds();
         getOs().getAdHocModule().disable();
         logInfo("VEHICLE_SHUTDOWN");
     }
@@ -149,10 +144,10 @@ public final class VehApp extends AbstractApplication<VehicleOperatingSystem>
             // printProcessedIds();
             lastPrintTime = now;
         }
-        scheduleNext();
+        scheduleEvent();
     }
 
-    private void scheduleNext() {
+    private void scheduleEvent() {
         getOs().getEventManager().addEvent(
             getOs().getSimulationTime() + BEACON_PERIOD_MS,
             this
@@ -167,11 +162,9 @@ public final class VehApp extends AbstractApplication<VehicleOperatingSystem>
     private void sendBeacon(long now) {
         Map<String, NodeRecord> payload = new HashMap<>(neighborGraph);
 
-        String msgId = "V2V-" + vehId + "-" + v2vSeq.getAndIncrement();
         MessageRouting routing = newRouting();
-        VehicleToVehicle v2v = new VehicleToVehicle(
+        CamMessage v2v = new CamMessage(
             routing,
-            msgId,
             now,
             vehId,
             getOs().getPosition(),
@@ -196,7 +189,7 @@ public final class VehApp extends AbstractApplication<VehicleOperatingSystem>
     @Override
     public void onMessageReceived(ReceivedV2xMessage in) {
         V2xMessage msg = in.getMessage();
-        if (msg instanceof VehicleToVehicle v2v) {
+        if (msg instanceof CamMessage v2v) {
             /*
             logInfo("RECEIVED VEHICLE_TO_VEHICLE : UNIQUE_ID = " + v2v.getMessageId() +
                     " | FROM = "      + v2v.getSenderId() +
@@ -205,24 +198,24 @@ public final class VehApp extends AbstractApplication<VehicleOperatingSystem>
             */
             handleV2V(v2v);
         } else if (msg instanceof RsuToVehicleMessage rtv) {
-            logInfo("RSU_TO_VEHICLE_MESSAGE : UNIQUE_ID = " + rtv.getUniqueId() +
+            logInfo("RSU_TO_VEHICLE_MESSAGE : UNIQUE_ID = " + rtv.getId() +
                     " | RSU_SOURCE = "    + rtv.getRsuSource() +
                     " | VEHICLE_TARGET = "+ rtv.getVehicleTarget() +
                     " | NEXT_HOP = "      + rtv.getNextHop() +
                     " | COMMAND = "       + rtv.getCommandEvent());
             handleR2V(rtv);
         } else if (msg instanceof VehicleToRsuACK ack) {
-            logInfo("VEHICLE_TO_RSU_ACK : UNIQUE_ID = " + ack.getUniqueId() +
+            logInfo("VEHICLE_TO_RSU_ACK : UNIQUE_ID = " + ack.getId() +
                     " | ORIGINAL_ID = "   + ack.getOriginalMessageId() +
                     " | NEXT_HOP = "      + ack.getNextHop());
             forwardAck(ack);
         }
     }
 
-    private void handleV2V(VehicleToVehicle v2v) {
-        if (!processedV2V.add(v2v.getMessageId())) return;
+    private void handleV2V(CamMessage v2v) {
+        if (!processedV2V.add(v2v.getId())) return;
 
-        String sender = v2v.getSenderId().toUpperCase(Locale.ROOT);
+        String sender = v2v.getSenderId();
         GeoPoint senderPos = v2v.getPosition();
 
         double distSelf   = getOs().getPosition().distanceTo(senderPos);
@@ -256,9 +249,8 @@ public final class VehApp extends AbstractApplication<VehicleOperatingSystem>
         });
 
         if (v2v.getTimeToLive() > 1) {
-            VehicleToVehicle fwd = new VehicleToVehicle(
+            CamMessage fwd = new CamMessage(
                 newRouting(),
-                v2v.getMessageId(),
                 v2v.getTimeStamp(),
                 v2v.getSenderId(),
                 senderPos,
@@ -285,7 +277,7 @@ public final class VehApp extends AbstractApplication<VehicleOperatingSystem>
         }
 
         if (rtv.getVehicleTarget().equalsIgnoreCase(vehId)) {
-            logInfo("FINAL TARGET REACHED | SENDING ACK : UNIQUE_ID = " + rtv.getUniqueId());
+            logInfo("FINAL TARGET REACHED | SENDING ACK : UNIQUE_ID = " + rtv.getId());
             FogEventMessage ev = rtv.getCommandEvent();
             switch (ev.getEventType()) {
                 case "ACCIDENT":
@@ -299,11 +291,11 @@ public final class VehApp extends AbstractApplication<VehicleOperatingSystem>
                 default:
                     logInfo("UNKNOWN EVENT TYPE: " + ev.getEventType());
             }
-            sendAck(rtv);
+            sendAcknowledgement(rtv);
             return;
         }
     
-        String dst = rtv.getVehicleTarget().toUpperCase(Locale.ROOT);
+        String dst = rtv.getVehicleTarget();
     
         NodeRecord rec = neighborGraph.get(dst);
         if (rec != null && rec.getDistanceFromVehicle() <= TX_RANGE_M) {
@@ -313,7 +305,6 @@ public final class VehApp extends AbstractApplication<VehicleOperatingSystem>
             
             RsuToVehicleMessage direct = new RsuToVehicleMessage(
                 newRouting(),
-                rtv.getUniqueId(),
                 rtv.getTimestamp(),
                 rtv.getExpiryTimestamp(),
                 rtv.getRsuSource(),
@@ -331,13 +322,12 @@ public final class VehApp extends AbstractApplication<VehicleOperatingSystem>
             // logDebug("NO ROUTE TO FORWARD RSU_TO_VEHICLE_MESSAGE : DEST = " + dst);
             return;
         }
-        logInfo("FORWARDING RSU_TO_VEHICLE_MESSAGE : UNIQUE_ID = " + rtv.getUniqueId() +
+        logInfo("FORWARDING RSU_TO_VEHICLE_MESSAGE : UNIQUE_ID = " + rtv.getId() +
                 " | NEXT_HOP = " + next);
         List<String> trail = new ArrayList<>(rtv.getForwardingTrail());
         trail.add(vehId);
         RsuToVehicleMessage fwd = new RsuToVehicleMessage(
             newRouting(),
-            rtv.getUniqueId(),
             rtv.getTimestamp(),
             rtv.getExpiryTimestamp(),
             rtv.getRsuSource(),
@@ -349,40 +339,45 @@ public final class VehApp extends AbstractApplication<VehicleOperatingSystem>
         getOs().getAdHocModule().sendV2xMessage(fwd);
     }
 
-    private void sendAck(RsuToVehicleMessage rtv) {
-        long now = getOs().getSimulationTime();
-        String uid = "ACK-" + vehId + "-" + ackSeq.getAndIncrement();
-    
-        List<String> backPath = new ArrayList<>(rtv.getForwardingTrail());
-        Collections.reverse(backPath);
-    
-        String nextHop = backPath.get(0);
-    
-        List<String> checklist = backPath.size() > 1
-            ? new ArrayList<>(backPath.subList(1, backPath.size()))
+        private void sendAcknowledgement(RsuToVehicleMessage originalMessage) {
+        long currentTime = getOs().getSimulationTime();
+        // Change: Simplified sequence number increment (from new code) using int
+        
+        List<String> backwardPath = new ArrayList<>(originalMessage.getForwardingTrail());
+        Collections.reverse(backwardPath);
+
+        if (backwardPath.isEmpty()) {
+            logInfo("empty forwarding trail in rsu message");
+            return;
+        }
+
+        String nextHop = backwardPath.get(0);
+        List<String> remainingPath = backwardPath.size() > 1
+            ? new ArrayList<>(backwardPath.subList(1, backwardPath.size()))
             : Collections.emptyList();
-        logInfo("SENDING VEHICLE_TO_RSU_ACK : UNIQUE_ID = " + uid +
-                " | ORIGINAL_ID = " + rtv.getUniqueId() +
-                " | NEXT_HOP = " + nextHop);
-        VehicleToRsuACK ack = new VehicleToRsuACK(
+
+
+        VehicleToRsuACK acknowledgement = new VehicleToRsuACK(
             newRouting(),
-            uid,
-            rtv.getUniqueId(),
-            now,
-            now + (10000 * TIME.MILLI_SECOND),
+            originalMessage.getId(),
+            currentTime,
+            currentTime + (10_000 * TIME.MILLI_SECOND),
             vehId,
-            rtv.getRsuSource(),
+            originalMessage.getRsuSource(),
             nextHop,
-            checklist
+            remainingPath
         );
-        logInfo(ack.toString());
-        processedAck.add(uid);
-        getOs().getAdHocModule().sendV2xMessage(ack);
+        
+        logInfo("sending ack: " + acknowledgement.getId() + " originalId=" + originalMessage.getId()
+                + " nextHop=" + nextHop);
+
+        processedAck.add(acknowledgement.getId());
+        getOs().getAdHocModule().sendV2xMessage(acknowledgement);
     }
 
     private void forwardAck(VehicleToRsuACK ack) {
     
-        if (!processedAck.add(ack.getUniqueId())) {
+        if (!processedAck.add(ack.getId())) {
             // logDebug("IGNORED VEHICLE_TO_RSU_ACK : DUPLICATE");
             return;
         }
@@ -394,10 +389,9 @@ public final class VehApp extends AbstractApplication<VehicleOperatingSystem>
     
         double distToRsu = computeRsuDistance(getOs().getPosition());
         if (distToRsu <= RSU_RANGE_M) {
-            // logInfo("DIRECT ACK DELIVERY TO RSU : UNIQUE_ID = " + ack.getUniqueId());
+            // logInfo("DIRECT ACK DELIVERY TO RSU : UNIQUE_ID = " + ack.getId());
             VehicleToRsuACK direct = new VehicleToRsuACK(
                 newRouting(),
-                ack.getUniqueId(),
                 ack.getOriginalMessageId(),
                 ack.getTimestamp(),
                 ack.getExpiryTimestamp(),
@@ -412,11 +406,10 @@ public final class VehApp extends AbstractApplication<VehicleOperatingSystem>
     
         List<String> checklist = new ArrayList<>(ack.getChecklist());
         String nextHop = checklist.remove(0);
-        logInfo("FORWARDING VEHICLE_TO_RSU_ACK : UNIQUE_ID = " + ack.getUniqueId()
+        logInfo("FORWARDING VEHICLE_TO_RSU_ACK : UNIQUE_ID = " + ack.getId()
               + " | NEXT_HOP = " + nextHop);
         VehicleToRsuACK fwd = new VehicleToRsuACK(
             newRouting(),
-            ack.getUniqueId(),
             ack.getOriginalMessageId(),
             ack.getTimestamp(),
             ack.getExpiryTimestamp(),
@@ -425,7 +418,7 @@ public final class VehApp extends AbstractApplication<VehicleOperatingSystem>
             nextHop,
             checklist
         );
-        processedAck.add(ack.getUniqueId());
+        processedAck.add(ack.getId());
         getOs().getAdHocModule().sendV2xMessage(fwd);
     }
  
@@ -522,34 +515,13 @@ public final class VehApp extends AbstractApplication<VehicleOperatingSystem>
     }
     */
 
-    private void printProcessedIds() {
-        /*
-        logInfo("PROCESSED_V2V_IDS : COUNT = " + processedV2V.size());
-        processedV2V.stream().sorted((a, b) -> {
-            String[] pa = a.split("-");
-            String[] pb = b.split("-");
-            int cmp = pa[1].compareTo(pb[1]);
-            if (cmp != 0) return cmp;
-            return Integer.compare(Integer.parseInt(pa[2]), Integer.parseInt(pb[2]));
-        }).forEach(id -> logInfo("PROCESSED_V2V_ID : " + id));
-        */
-        logInfo("PROCESSED_ACK_IDS : COUNT = " + processedAck.size());
-        processedAck.stream().sorted((a, b) -> {
-            String[] pa = a.split("-");
-            String[] pb = b.split("-");
-            int cmp = pa[1].compareTo(pb[1]);
-            if (cmp != 0) return cmp;
-            return Integer.compare(Integer.parseInt(pa[2]), Integer.parseInt(pb[2]));
-        }).forEach(id -> logInfo("PROCESSED_ACK_ID : " + id));
-    }
-
     private double computeRsuDistance(GeoPoint p) {
         return p.distanceTo(STATIC_RSUS.get("RSU_0"));
     }
-
-    @Override public void onMessageTransmitted(V2xMessageTransmission tx) { }
-    @Override public void onAcknowledgementReceived(ReceivedAcknowledgement ack) { }
-    @Override public void onCamBuilding(CamBuilder cb) { }
+    
+    @Override public void onMessageTransmitted(V2xMessageTransmission tx) { /* No action required */ }
+    @Override public void onAcknowledgementReceived(org.eclipse.mosaic.fed.application.ambassador.simulation.communication.ReceivedAcknowledgement ack) { /* No action required */ }
+    @Override public void onCamBuilding(org.eclipse.mosaic.fed.application.ambassador.simulation.communication.CamBuilder cb) { /* No action required */ }
 
     private void logInfo(String msg) { 
         getLog().infoSimTime(this, "[" + vehId + "] [INFO]  " + msg);

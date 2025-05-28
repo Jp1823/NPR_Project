@@ -11,7 +11,6 @@ import org.eclipse.mosaic.lib.objects.v2x.V2xMessage;
 
 public final class FogToRsuMessage extends V2xMessage {
 
-    private final String uniqueId;
     private final long timestamp;
     private final long expiryTimestamp;
     private final String messageType;
@@ -20,7 +19,6 @@ public final class FogToRsuMessage extends V2xMessage {
     private final FogEventMessage commandEvent;
 
     public FogToRsuMessage(MessageRouting routing,
-                           String uniqueId,
                            long timestamp,
                            long expiryTimestamp,
                            String messageType,
@@ -28,7 +26,6 @@ public final class FogToRsuMessage extends V2xMessage {
                            String vehicleTarget,
                            FogEventMessage commandEvent) {
         super(routing);
-        this.uniqueId        = Objects.requireNonNull(uniqueId);
         this.timestamp       = timestamp;
         this.expiryTimestamp = expiryTimestamp;
         this.messageType     = Objects.requireNonNull(messageType);
@@ -42,7 +39,6 @@ public final class FogToRsuMessage extends V2xMessage {
         try (ByteArrayOutputStream buf = new ByteArrayOutputStream();
             DataOutputStream out = new DataOutputStream(buf)) {
 
-            out.writeUTF(uniqueId);
             out.writeLong(timestamp);
             out.writeLong(expiryTimestamp);
             out.writeUTF(messageType);
@@ -59,7 +55,6 @@ public final class FogToRsuMessage extends V2xMessage {
         }
     }
 
-    public String getUniqueId()             { return uniqueId; }
     public long   getTimestamp()            { return timestamp; }
     public long   getExpiryTimestamp()      { return expiryTimestamp; }
     public String getMessageType()          { return messageType; }
@@ -69,7 +64,7 @@ public final class FogToRsuMessage extends V2xMessage {
 
     @Override
     public String toString() {
-        return "FOG_TO_RSU_MESSAGE : UNIQUE_ID: " + uniqueId +
+        return "FOG_TO_RSU_MESSAGE :" +
                " | FOG_IDENTIFIER: " + fogIdentifier +
                " | VEHICLE_TARGET: " + vehicleTarget +
                " | MESSAGE_TYPE: " + messageType +

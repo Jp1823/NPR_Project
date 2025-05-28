@@ -9,9 +9,8 @@ import org.eclipse.mosaic.lib.util.SerializationUtils;
 
 import pt.uminho.npr.projeto.records.NodeRecord;
 
-public final class VehicleToVehicle extends V2xMessage {
+public final class CamMessage extends V2xMessage {
 
-    private final String messageId;
     private final long timeStamp;
     private final String senderId;
     private final GeoPoint position;
@@ -24,21 +23,19 @@ public final class VehicleToVehicle extends V2xMessage {
     private final int timeToLive;
     private final Map<String, NodeRecord> neighborGraph;
 
-    public VehicleToVehicle(MessageRouting routing,
-                            String messageId,
-                            long timeStamp,
-                            String senderId,
-                            GeoPoint position,
-                            double heading,
-                            double speed,
-                            double acceleration,
-                            boolean brakeLightOn,
-                            boolean leftTurnSignalOn,
-                            boolean rightTurnSignalOn,
-                            int timeToLive,
-                            Map<String, NodeRecord> neighborGraph) {
+    public CamMessage(MessageRouting routing,
+                        long timeStamp,
+                        String senderId,
+                        GeoPoint position,
+                        double heading,
+                        double speed,
+                        double acceleration,
+                        boolean brakeLightOn,
+                        boolean leftTurnSignalOn,
+                        boolean rightTurnSignalOn,
+                        int timeToLive,
+                        Map<String, NodeRecord> neighborGraph) {
         super(routing);
-        this.messageId           = Objects.requireNonNull(messageId);
         this.timeStamp           = timeStamp;
         this.senderId            = Objects.requireNonNull(senderId);
         this.position            = Objects.requireNonNull(position);
@@ -56,7 +53,6 @@ public final class VehicleToVehicle extends V2xMessage {
     public EncodedPayload getPayload() {
         try (ByteArrayOutputStream buf = new ByteArrayOutputStream();
             DataOutputStream out = new DataOutputStream(buf)) {
-            out.writeUTF(messageId);
             out.writeLong(timeStamp);
             out.writeUTF(senderId);
             SerializationUtils.encodeGeoPoint(out, position);
@@ -93,7 +89,6 @@ public final class VehicleToVehicle extends V2xMessage {
         }
     }
 
-    public String getMessageId()            { return messageId; }
     public long   getTimeStamp()            { return timeStamp; }
     public String getSenderId()             { return senderId; }
     public GeoPoint getPosition()           { return position; }
@@ -108,7 +103,7 @@ public final class VehicleToVehicle extends V2xMessage {
 
     @Override
     public String toString() {
-        return "VEHICLE_TO_VEHICLE : MESSAGE_ID: " + messageId +
+        return "VEHICLE_TO_VEHICLE :" +
                " | SENDER_ID: " + senderId +
                " | POSITION: " + position +
                " | HEADING: " + heading +

@@ -7,7 +7,6 @@ import org.eclipse.mosaic.lib.objects.v2x.*;
 
 public final class RsuToVehicleMessage extends V2xMessage {
 
-    private final String uniqueId;
     private final long timestamp;
     private final long expiryTimestamp;
     private final String rsuSource;
@@ -17,7 +16,6 @@ public final class RsuToVehicleMessage extends V2xMessage {
     private final List<String> forwardingTrail;
 
     public RsuToVehicleMessage(MessageRouting routing,
-                               String uniqueId,
                                long timestamp,
                                long expiryTimestamp,
                                String rsuSource,
@@ -26,7 +24,6 @@ public final class RsuToVehicleMessage extends V2xMessage {
                                FogEventMessage commandEvent,
                                List<String> forwardingTrail) {
         super(routing);
-        this.uniqueId        = Objects.requireNonNull(uniqueId);
         this.timestamp       = timestamp;
         this.expiryTimestamp = expiryTimestamp;
         this.rsuSource       = Objects.requireNonNull(rsuSource);
@@ -41,7 +38,6 @@ public final class RsuToVehicleMessage extends V2xMessage {
         try (ByteArrayOutputStream buf = new ByteArrayOutputStream();
              DataOutputStream out = new DataOutputStream(buf)) {
 
-            out.writeUTF(uniqueId);
             out.writeLong(timestamp);
             out.writeLong(expiryTimestamp);
             out.writeUTF(rsuSource);
@@ -63,7 +59,6 @@ public final class RsuToVehicleMessage extends V2xMessage {
         }
     }
 
-    public String getUniqueId()               { return uniqueId; }
     public long   getTimestamp()              { return timestamp; }
     public long   getExpiryTimestamp()        { return expiryTimestamp; }
     public String getRsuSource()              { return rsuSource; }
@@ -74,11 +69,11 @@ public final class RsuToVehicleMessage extends V2xMessage {
 
     @Override
     public String toString() {
-        return "RSU_TO_VEHICLE_MESSAGE : UNIQUE_ID: " + uniqueId +
+        return "RSU_TO_VEHICLE_MESSAGE :" +
                " | RSU_SOURCE: " + rsuSource +
                " | VEHICLE_TARGET: " + vehicleTarget +
                " | NEXT_HOP: " + nextHop +
-               " | EVENT_ID: " + commandEvent.getUniqueId() +
+               " | EVENT_ID: " + commandEvent.getId() +
                " | FORWARDING_TRAIL_SIZE: " + forwardingTrail.size() +
                " | TIMESTAMP: " + timestamp +
                " | EXPIRY_TIMESTAMP: " + expiryTimestamp;

@@ -14,13 +14,13 @@ import org.eclipse.mosaic.lib.util.scheduling.Event;
 import org.eclipse.mosaic.rti.DATA;
 import org.eclipse.mosaic.rti.TIME;
 
-import pt.uminho.npr.projeto.messages.FogEventMessage;
+import pt.uminho.npr.projeto.messages.EventMessage;
 import pt.uminho.npr.projeto.messages.FogToRsuMessage;
-import pt.uminho.npr.projeto.messages.VehicleToRsuACK;
+import pt.uminho.npr.projeto.messages.EventACK;
 import pt.uminho.npr.projeto.messages.CamMessage;
 
 import java.util.*;
-import java.util.concurrent.atomic.AtomicLong;
+import java.util.concurrent.atomic.AtomicInteger;
 
 public final class FogApp extends AbstractApplication<ServerOperatingSystem>
         implements CommunicationApplication {
@@ -50,10 +50,10 @@ public final class FogApp extends AbstractApplication<ServerOperatingSystem>
     }
     
     private final Map<String, CamMessage> vehicleStates = new HashMap<>();
-    private final Set<Integer> seenRsuMessages = new HashSet<>();
-    private final Set<Integer> seenAcks        = new HashSet<>();
-    private final AtomicLong  eventSeq        = new AtomicLong();
-    private final Random      random          = new Random();
+    private final Set<Integer>  seenRsuMessages = new HashSet<>();
+    private final Set<Integer>  seenAcks        = new HashSet<>();
+    private final AtomicInteger eventSeq        = new AtomicInteger();
+    private final Random        random          = new Random();
     private String fogId;
 
     @Override
@@ -85,12 +85,12 @@ public final class FogApp extends AbstractApplication<ServerOperatingSystem>
     @Override
     public void onMessageReceived(ReceivedV2xMessage incoming) {
         V2xMessage msg = incoming.getMessage();
-        V2xReceiverInformation receiverInfo = incoming.getReceiverInformation();
+        //V2xReceiverInformation receiverInfo = incoming.getReceiverInformation();
 
-        if (msg instanceof CamMessage v2v) {
-            vehicleStates.put(v2v.getSenderId(), v2v);
-        } else if (msg instanceof VehicleToRsuACK ack) {
-            seenAcks.add(ack.getId());
+        if (msg instanceof CamMessage v2v && seenRsuMessages.add(v2v.getId())) {
+            vehicleStates.put(v2v.getVehId(), v2v);
+        } else if (msg instanceof EventACK ack && seenAcks.add(ack.getId())) {
+            // Empty for now
         }
     }
 
@@ -151,15 +151,13 @@ public final class FogApp extends AbstractApplication<ServerOperatingSystem>
         long now = getOs().getSimulationTime();
 
         for (String target : affected) {
-            String id = String.format(
-                "EVT-%s-%s-%d",
-                fogId, target, eventSeq.getAndIncrement()
-            );
+            int id = eventSeq.getAndIncrement();
             logInfo(String.format(
-                "EVENT_GENERATED : UNIQUE_ID: %s | EVENT_TYPE: %s", id, eventType
+                "EVENT_GENERATED : UNIQUE_ID: %d | EVENT_TYPE: %s", id, eventType
             ));
-            FogEventMessage ev = new FogEventMessage(
+            EventMessage ev = new EventMessage(
                 newRouting(),
+                id,
                 now,
                 now + EVENT_TTL,
                 fogId,
@@ -171,7 +169,7 @@ public final class FogApp extends AbstractApplication<ServerOperatingSystem>
         }
     }
 
-    private void sendEvent(FogEventMessage ev, String vehicleTarget) {
+    private void sendEvent(EventMessage ev, String vehicleTarget) {
         FogToRsuMessage msg = new FogToRsuMessage(
             newRouting(),
             ev.getTimestamp(),

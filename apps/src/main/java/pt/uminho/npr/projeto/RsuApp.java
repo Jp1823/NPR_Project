@@ -92,9 +92,9 @@ public final class RsuApp extends AbstractApplication<RoadSideUnitOperatingSyste
             forwardToFog(v2v);
             handleV2V(v2v);
 
-        } else if (msg instanceof VehicleToRsuACK ack) {
+        } else if (msg instanceof EventACK ack) {
             logInfo(String.format(
-                "ACK_RECEIVED : UNIQUE_ID: %s | ORIGINAL_ID: %s", ack.getId(), ack.getOriginalMessageId()
+                "ACK_RECEIVED : UNIQUE_ID: %s", ack.getId()
             ));
             forwardToFog(ack);
             
@@ -120,7 +120,7 @@ public final class RsuApp extends AbstractApplication<RoadSideUnitOperatingSyste
 
     private void handleV2V(CamMessage v2v) {
 
-        String vid = v2v.getSenderId();
+        String vid = v2v.getVehId();
         double d   = getOs().getPosition().distanceTo(v2v.getPosition());
         boolean reachable = d <= TX_RANGE_M;
         List<String> reachableNeighbors = new ArrayList<>(v2v.getNeighborGraph().keySet());
@@ -132,7 +132,7 @@ public final class RsuApp extends AbstractApplication<RoadSideUnitOperatingSyste
             .toList();
 
         NodeRecord rec = new NodeRecord(
-            d, /* TODO check this fields */
+            d,
             d,
             reachable,
             reachableNeighbors,
@@ -160,7 +160,7 @@ public final class RsuApp extends AbstractApplication<RoadSideUnitOperatingSyste
     
         List<String> initialTrail = List.of(rsuId);
     
-        FogEventMessage event = f2r.getCommandEvent();
+        EventMessage event = f2r.getCommandEvent();
     
         RsuToVehicleMessage rtv = new RsuToVehicleMessage(
             newRoutingAdHoc(),

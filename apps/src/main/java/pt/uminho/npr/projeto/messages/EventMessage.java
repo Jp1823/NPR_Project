@@ -14,7 +14,7 @@ import org.eclipse.mosaic.lib.objects.v2x.MessageRouting;
 import org.eclipse.mosaic.lib.objects.v2x.V2xMessage;
 import org.eclipse.mosaic.lib.util.SerializationUtils;
 
-public final class FogEventMessage extends V2xMessage {
+public final class EventMessage extends V2xMessage {
 
     private final long                 timestamp;
     private final long                 expiryTimestamp;
@@ -23,14 +23,15 @@ public final class FogEventMessage extends V2xMessage {
     private final GeoPoint             location;
     private final Map<String,String>   parameters;
 
-    public FogEventMessage(MessageRouting routing,
+    public EventMessage(MessageRouting routing,
+                           int eventId,
                            long timestamp,
                            long expiryTimestamp,
                            String fogSource,
                            String eventType,
                            GeoPoint location,
                            Map<String,String> parameters) {
-        super(routing);
+        super(routing, eventId);
         this.timestamp       = timestamp;
         this.expiryTimestamp = expiryTimestamp;
         this.fogSource       = Objects.requireNonNull(fogSource);
@@ -43,7 +44,7 @@ public final class FogEventMessage extends V2xMessage {
     public EncodedPayload getPayload() {
         try (ByteArrayOutputStream buf = new ByteArrayOutputStream();
              DataOutputStream out = new DataOutputStream(buf)) {
-
+            out.writeInt(getId());
             out.writeLong(timestamp);
             out.writeLong(expiryTimestamp);
             out.writeUTF(fogSource);
@@ -70,7 +71,8 @@ public final class FogEventMessage extends V2xMessage {
 
     @Override
     public String toString() {
-        return "FOG_EVENT_MESSAGE :" +
+        return "EVENT_MESSAGE :" +
+               " | EVENT_ID: "       + getId() +
                " | FOG_SOURCE: "       + fogSource +
                " | EVENT_TYPE: "       + eventType +
                " | LOCATION: "         + location +

@@ -5,9 +5,8 @@ import java.util.*;
 import javax.annotation.Nonnull;
 import org.eclipse.mosaic.lib.objects.v2x.*;
 
-public final class VehicleToRsuACK extends V2xMessage {
+public final class EventACK extends V2xMessage {
 
-    private final int originalMessageId;
     private final long timestamp;
     private final long expiryTimestamp;
     private final String vehicleIdentifier;
@@ -15,16 +14,15 @@ public final class VehicleToRsuACK extends V2xMessage {
     private final String nextHop;
     private final List<String> checklist;
 
-    public VehicleToRsuACK(MessageRouting routing,
-                           int originalMessageId,
+    public EventACK(MessageRouting routing,
+                           int ackId,
                            long timestamp,
                            long expiryTimestamp,
                            String vehicleIdentifier,
                            String rsuDestination,
                            String nextHop,
                            List<String> checklist) {
-        super(routing);
-        this.originalMessageId = originalMessageId;
+        super(routing, ackId);
         this.timestamp         = timestamp;
         this.expiryTimestamp   = expiryTimestamp;
         this.vehicleIdentifier = Objects.requireNonNull(vehicleIdentifier);
@@ -37,7 +35,7 @@ public final class VehicleToRsuACK extends V2xMessage {
     public EncodedPayload getPayload() {
         try (ByteArrayOutputStream buf = new ByteArrayOutputStream();
              DataOutputStream out = new DataOutputStream(buf)) {
-            out.writeInt(originalMessageId);
+            out.writeInt(getId());
             out.writeLong(timestamp);
             out.writeLong(expiryTimestamp);
             out.writeUTF(vehicleIdentifier);
@@ -53,7 +51,6 @@ public final class VehicleToRsuACK extends V2xMessage {
         }
     }
 
-    public int    getOriginalMessageId() { return originalMessageId; }
     public long   getTimestamp()         { return timestamp; }
     public long   getExpiryTimestamp()   { return expiryTimestamp; }
     public String getVehicleIdentifier() { return vehicleIdentifier; }
@@ -63,8 +60,8 @@ public final class VehicleToRsuACK extends V2xMessage {
 
     @Override
     public String toString() {
-        return "VEHICLE_TO_RSU_ACK :" +
-               " | ORIGINAL_MESSAGE_ID: " + originalMessageId +
+        return "EVENT_ACK :" +
+               " | ACK_ID: " + getId() +
                " | VEHICLE_IDENTIFIER: " + vehicleIdentifier +
                " | NEXT_HOP: " + nextHop +
                " | RSU_DESTINATION: " + rsuDestination +

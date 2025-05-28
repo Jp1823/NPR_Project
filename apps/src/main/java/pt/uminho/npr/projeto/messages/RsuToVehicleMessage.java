@@ -12,7 +12,7 @@ public final class RsuToVehicleMessage extends V2xMessage {
     private final String rsuSource;
     private final String vehicleTarget;
     private final String nextHop;
-    private final FogEventMessage commandEvent;
+    private final EventMessage commandEvent;
     private final List<String> forwardingTrail;
 
     public RsuToVehicleMessage(MessageRouting routing,
@@ -21,7 +21,7 @@ public final class RsuToVehicleMessage extends V2xMessage {
                                String rsuSource,
                                String vehicleTarget,
                                String nextHop,
-                               FogEventMessage commandEvent,
+                               EventMessage commandEvent,
                                List<String> forwardingTrail) {
         super(routing);
         this.timestamp       = timestamp;
@@ -64,7 +64,7 @@ public final class RsuToVehicleMessage extends V2xMessage {
     public String getRsuSource()              { return rsuSource; }
     public String getVehicleTarget()          { return vehicleTarget; }
     public String getNextHop()                { return nextHop; }
-    public FogEventMessage getCommandEvent()  { return commandEvent; }
+    public EventMessage getCommandEvent()  { return commandEvent; }
     public List<String> getForwardingTrail()  { return forwardingTrail; }
 
     @Override

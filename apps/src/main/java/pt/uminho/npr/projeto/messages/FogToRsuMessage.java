@@ -16,7 +16,7 @@ public final class FogToRsuMessage extends V2xMessage {
     private final String messageType;
     private final String fogIdentifier;
     private final String vehicleTarget;
-    private final FogEventMessage commandEvent;
+    private final EventMessage commandEvent;
 
     public FogToRsuMessage(MessageRouting routing,
                            long timestamp,
@@ -24,7 +24,7 @@ public final class FogToRsuMessage extends V2xMessage {
                            String messageType,
                            String fogIdentifier,
                            String vehicleTarget,
-                           FogEventMessage commandEvent) {
+                           EventMessage commandEvent) {
         super(routing);
         this.timestamp       = timestamp;
         this.expiryTimestamp = expiryTimestamp;
@@ -60,7 +60,7 @@ public final class FogToRsuMessage extends V2xMessage {
     public String getMessageType()          { return messageType; }
     public String getFogIdentifier()        { return fogIdentifier; }
     public String getVehicleTarget()        { return vehicleTarget; }
-    public FogEventMessage getCommandEvent(){ return commandEvent; }
+    public EventMessage getCommandEvent(){ return commandEvent; }
 
     @Override
     public String toString() {

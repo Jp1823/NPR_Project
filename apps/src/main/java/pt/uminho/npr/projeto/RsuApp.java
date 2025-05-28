@@ -29,68 +29,44 @@ public final class RsuApp extends AbstractApplication<RoadSideUnitOperatingSyste
     private static final double TX_RANGE_M      = 120.0;
     private static final long   NEIGHBOR_TTL_MS = 1000 * TIME.MILLI_SECOND;
 
-    private final Map<String, NodeRecord>  neighbors     = new HashMap<>();
-    private final Map<String, Set<String>> seenIds       = new HashMap<>();
-    private final Map<String,Integer>      fairnessCount = new HashMap<>();
-    private final AtomicInteger            seqToVeh      = new AtomicInteger();
-    private final AtomicInteger            seqToFog      = new AtomicInteger();
-    private final AtomicInteger            seqAlert      = new AtomicInteger();
-    private final Set<String>              seenAlerts    = new HashSet<>();
-    private String fogId;
-    
     private static final double W_TWO_HOP      = 50.0;
     private static final double W_PROXIMITY    = 30.0;
     private static final double W_CONNECTIVITY = 10.0;
     private static final double W_STABILITY    =  5.0;
     private static final double W_FAIRNESS     =  5.0;
 
-    private static final Map<String,String> RSU_TO_FOG = new HashMap<>();
-    static {
-        RSU_TO_FOG.put("RSU_1", "server_0");
-        RSU_TO_FOG.put("RSU_4", "server_0");
-        RSU_TO_FOG.put("RSU_9", "server_0");
+    private final Map<String, NodeRecord>  neighbors     = new HashMap<>();
+    private final Map<String, Set<String>> seenIds       = new HashMap<>();
+    private final Map<String,Integer>      fairnessCount = new HashMap<>();
+    private final AtomicInteger            seqToVeh      = new AtomicInteger();
+    private final AtomicInteger            seqToFog      = new AtomicInteger();
 
-        RSU_TO_FOG.put("RSU_2", "server_1");
-        RSU_TO_FOG.put("RSU_3", "server_1");
-        RSU_TO_FOG.put("RSU_5", "server_1");
-
-        RSU_TO_FOG.put("RSU_6", "server_2");
-        RSU_TO_FOG.put("RSU_7", "server_2");
-
-        RSU_TO_FOG.put("RSU_8",  "server_3");
-        RSU_TO_FOG.put("RSU_10", "server_3");
-
-        RSU_TO_FOG.put("RSU_11", "server_4");
-        RSU_TO_FOG.put("RSU_12", "server_4");
-
-        RSU_TO_FOG.put("RSU_13", "server_5");
-        RSU_TO_FOG.put("RSU_0",  "server_5");
-    }
-
-    private static final List<String> ALL_RSUS = List.of(
-        "rsu_0","rsu_1","rsu_2","rsu_3","rsu_4","rsu_5","rsu_6",
-        "rsu_7","rsu_8","rsu_9","rsu_10","rsu_11","rsu_12","rsu_13"
-    );
+    private String rsuId;
+    private String fogId;
 
     @Override
     public void onStartup() {
-        String rsuId = getOs().getId().toUpperCase(Locale.ROOT);
-        logInfo(String.format("RSU_INITIALIZATION : RSU_ID: %s", rsuId));
+        
+        // Initialize RSU and FOG IDs
+        rsuId = getOs().getId().toUpperCase(Locale.ROOT);
+        fogId = "server_0";
+        
+        // Enable communication modules
         getOs().getAdHocModule().enable(
             new AdHocModuleConfiguration()
-                .addRadio()
-                .channel(AdHocChannel.CCH)
-                .power(TX_POWER_DBM)
-                .distance(TX_RANGE_M)
-                .create()
+            .addRadio()
+            .channel(AdHocChannel.CCH)
+            .power(TX_POWER_DBM)
+            .distance(TX_RANGE_M)
+            .create()
         );
         getOs().getCellModule().enable(new CellModuleConfiguration()
             .maxDownlinkBitrate(50 * DATA.MEGABIT)
             .maxUplinkBitrate(50 * DATA.MEGABIT)
         );
-        String myId = getOs().getId().toUpperCase(Locale.ROOT);
-        fogId = RSU_TO_FOG.get(myId);
+        
         scheduleCleanup();
+        logInfo("RSU_INITIALIZATION");
     }
 
     @Override
@@ -98,6 +74,7 @@ public final class RsuApp extends AbstractApplication<RoadSideUnitOperatingSyste
         printProcessedIds();
         getOs().getAdHocModule().disable();
         getOs().getCellModule().disable();
+        logInfo("RSU_SHUTDOWN");
     }
 
     @Override
@@ -134,12 +111,6 @@ public final class RsuApp extends AbstractApplication<RoadSideUnitOperatingSyste
                 "FOG_COMMAND_RECEIVED : UNIQUE_ID: %s | EVENT_TYPE: %s", f2r.getUniqueId(), f2r.getCommandEvent().getEventType()
             ));
             handleFogCommand(f2r);
-            emitRsuAlert(f2r.getCommandEvent());
-        } else if (m instanceof RsuAlertMessage alert && seenAlerts.add(alert.getUniqueId())) {
-            logInfo(String.format(
-                "RSU_ALERT_RECEIVED : UNIQUE_ID: %s | ORIGIN: %s", alert.getUniqueId(), alert.getOriginRsu()
-            ));
-            handleLocalRsuAlert(alert);
         }
     }
 
@@ -148,13 +119,12 @@ public final class RsuApp extends AbstractApplication<RoadSideUnitOperatingSyste
     @Override public void onCamBuilding(org.eclipse.mosaic.fed.application.ambassador.simulation.communication.CamBuilder cb) { }
 
     private void forwardToFog(V2xMessage inner) {
-        String rsuId = getOs().getId().toUpperCase(Locale.ROOT);
         MessageRouting routing = newRoutingCell();
         RsuToFogMessage rtf = new RsuToFogMessage(
             routing,
             String.format("RTF-%s-%s-%d", rsuId, fogId, seqToFog.getAndIncrement()),
             getOs().getSimulationTime(),
-            getOs().getId().toUpperCase(Locale.ROOT),
+            rsuId,
             inner
         );
         getOs().getCellModule().sendV2xMessage(rtf);
@@ -172,10 +142,10 @@ public final class RsuApp extends AbstractApplication<RoadSideUnitOperatingSyste
                 NodeRecord nr = v2v.getNeighborGraph().get(id);
                 return nr != null && nr.getDistanceFromVehicle() <= TX_RANGE_M;
             })
-            .collect(Collectors.toList());
+            .toList();
 
         NodeRecord rec = new NodeRecord(
-            d,
+            d, /* TODO check this fields */
             d,
             reachable,
             reachableNeighbors,
@@ -186,8 +156,7 @@ public final class RsuApp extends AbstractApplication<RoadSideUnitOperatingSyste
     }
 
     private void handleFogCommand(FogToRsuMessage f2r) {
-        String rsuId = getOs().getId().toUpperCase(Locale.ROOT);
-    
+        
         String dst = f2r.getVehicleTarget().toUpperCase(Locale.ROOT);
         NodeRecord rec = neighbors.get(dst);
     
@@ -225,30 +194,6 @@ public final class RsuApp extends AbstractApplication<RoadSideUnitOperatingSyste
         ));
     }
 
-    private void emitRsuAlert(FogEventMessage ev) {
-        String origin = getOs().getId().toUpperCase(Locale.ROOT);
-        for (String target : ALL_RSUS) {
-            if (target.equalsIgnoreCase(origin)) continue;
-            String alertId = String.format("ALERT-%s-%s-%d", origin, target.toUpperCase(), seqAlert.getAndIncrement());
-            if (!seenAlerts.add(alertId)) continue;
-            RsuAlertMessage alert = new RsuAlertMessage(
-                newRoutingToRsu(target),
-                alertId,
-                getOs().getSimulationTime(),
-                origin,
-                ev
-            );
-            getOs().getCellModule().sendV2xMessage(alert);
-            logInfo(String.format(
-                "ALERT_EMITTED : UNIQUE_ID: %s | TARGET_RSU: %s", alertId, target.toUpperCase()
-            ));
-        }
-    }
-
-    private void handleLocalRsuAlert(RsuAlertMessage alert) {
-        return;
-    }
-
     private MessageRouting newRoutingAdHoc() {
         return getOs().getAdHocModule()
             .createMessageRouting()
@@ -265,19 +210,11 @@ public final class RsuApp extends AbstractApplication<RoadSideUnitOperatingSyste
             .build();
     }
 
-    private MessageRouting newRoutingToRsu(String rsuDest) {
-        return getOs().getCellModule()
-            .createMessageRouting()
-            .destination(rsuDest)
-            .topological()
-            .build();
-    }
-
     private String selectNextHop(String dst) {
         List<String> direct = neighbors.entrySet().stream()
             .filter(e -> e.getValue().isReachableToRsu())
             .map(Map.Entry::getKey)
-            .collect(Collectors.toList());
+            .toList();
         if (direct.isEmpty()) return null;
     
         Set<String> twoHop = direct.stream()
@@ -307,10 +244,10 @@ public final class RsuApp extends AbstractApplication<RoadSideUnitOperatingSyste
 
             double scoreConn   = rec.getReachableNeighbors().size() / maxDegree;
 
-            double age         = now - rec.getCreationTimestamp();
+            long   age         = now - rec.getCreationTimestamp();
             double scoreStab   = age / maxStability;
 
-            int usedTimes      = fairnessCount.getOrDefault(cand, 0);
+            int    usedTimes   = fairnessCount.getOrDefault(cand, 0);
             double scoreFair   = 1.0 - (usedTimes / (double) maxFairness);
     
             double score = W_TWO_HOP      * scoreTwoHop
@@ -347,7 +284,7 @@ public final class RsuApp extends AbstractApplication<RoadSideUnitOperatingSyste
     }
 
     private double distance(org.eclipse.mosaic.lib.geo.GeoPoint a, org.eclipse.mosaic.lib.geo.GeoPoint b) {
-        double R = 6_371_000;
+        double r = 6_371_000;
         double dLat = Math.toRadians(b.getLatitude() - a.getLatitude());
         double dLon = Math.toRadians(b.getLongitude() - a.getLongitude());
         double sLat = Math.sin(dLat / 2);
@@ -356,7 +293,7 @@ public final class RsuApp extends AbstractApplication<RoadSideUnitOperatingSyste
                    Math.cos(Math.toRadians(a.getLatitude())) *
                    Math.cos(Math.toRadians(b.getLatitude())) *
                    sLon * sLon;
-        return 2 * R * Math.atan2(Math.sqrt(h), Math.sqrt(1 - h));
+        return 2 * r * Math.atan2(Math.sqrt(h), Math.sqrt(1 - h));
     }
 
     private void scheduleCleanup() {
@@ -413,6 +350,6 @@ public final class RsuApp extends AbstractApplication<RoadSideUnitOperatingSyste
     }    
 
     private void logInfo(String m) {
-        getLog().infoSimTime(this, "[" + getOs().getId().toUpperCase(Locale.ROOT) + "] [INFO]  " + m);
+        getLog().infoSimTime(this, "[" + rsuId + "] [INFO]  " + m);
     }
 }

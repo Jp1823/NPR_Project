@@ -174,50 +174,6 @@
   "servers": [
     {
       "group": "FOG",
-      "position": {
-        "latitude": 52.450347,
-        "longitude": 13.299260
-      },
-      "applications": [ "pt.uminho.npr.projeto.FogApp" ]
-    },
-    {
-      "group": "FOG",
-      "position": {
-        "latitude": 52.451348,
-        "longitude": 13.302894
-      },
-      "applications": [ "pt.uminho.npr.projeto.FogApp" ]
-    },
-    {
-      "group": "FOG",
-      "position": {
-        "latitude": 52.448733,
-        "longitude": 13.304369
-      },
-      "applications": [ "pt.uminho.npr.projeto.FogApp" ]
-    },
-    {
-      "group": "FOG",
-      "position": {
-        "latitude": 52.448128,
-        "longitude": 13.299091
-      },
-      "applications": [ "pt.uminho.npr.projeto.FogApp" ]
-    },
-    {
-      "group": "FOG",
-      "position": {
-        "latitude": 52.447646,
-        "longitude": 13.295392
-      },
-      "applications": [ "pt.uminho.npr.projeto.FogApp" ]
-    },
-    {
-      "group": "FOG",
-      "position": {
-        "latitude": 52.449871,
-        "longitude": 13.294694
-      },
       "applications": [ "pt.uminho.npr.projeto.FogApp" ]
     }
   ]

@@ -37,27 +37,28 @@ public final class FogApp extends AbstractApplication<ServerOperatingSystem>
     private final Set<String> seenRsuMessages = new HashSet<>();
     private final Set<String> seenAcks        = new HashSet<>();
     private final Random random = new Random();
+    private String fogId;
 
     @Override
     public void onStartup() {
-        String fogId = getOs().getId().toUpperCase(Locale.ROOT);
-        logInfo(String.format(
-            "FOG_INITIALIZATION : FOG_ID: %s", fogId
-        ));
+        
+        // Set ID
+        fogId = getOs().getId().toUpperCase(Locale.ROOT);
+        
+        // Enable communication module 
         getOs().getCellModule().enable(new CellModuleConfiguration()
             .maxDownlinkBitrate(50 * DATA.MEGABIT)
             .maxUplinkBitrate(50 * DATA.MEGABIT)
         );
+
         scheduleTick();
+        logInfo("FOG_INITIALIZATION");
     }
 
     @Override
     public void onShutdown() {
-        String fogId = getOs().getId().toUpperCase(Locale.ROOT);
-        logInfo(String.format(
-            "FOG_SHUTDOWN : FOG_ID: %s", fogId
-        ));
         getOs().getCellModule().disable();
+        logInfo("FOG_SHUTDOWN");
     }
 
     @Override
@@ -96,17 +97,12 @@ public final class FogApp extends AbstractApplication<ServerOperatingSystem>
             return;
         }
 
-        long now = getOs().getSimulationTime();
-        String fogId = getOs().getId().toUpperCase(Locale.ROOT);
-
-        boolean accident = random.nextBoolean();
-        String eventType = accident ? "ACCIDENT" : "LANE_CLOSURE";
-
         List<String> allIds = new ArrayList<>(vehicleStates.keySet());
         Collections.shuffle(allIds, random);
         List<String> affected = allIds.subList(0, Math.min(MAX_AFFECTED_VEHICLES, allIds.size()));
 
-        double sumLat = 0, sumLon = 0;
+        double sumLat = 0;
+        double sumLon = 0;
         for (String vid : affected) {
             GeoPoint p = vehicleStates.get(vid).getPosition();
             sumLat += p.getLatitude();
@@ -118,6 +114,9 @@ public final class FogApp extends AbstractApplication<ServerOperatingSystem>
             0
         );
 
+        boolean accident = random.nextBoolean();
+        String eventType = accident ? "ACCIDENT" : "LANE_CLOSURE";
+
         Map<String, String> params = new HashMap<>();
         params.put("affectedVehicles", String.join(",", affected));
         if (accident) {
@@ -126,6 +125,8 @@ public final class FogApp extends AbstractApplication<ServerOperatingSystem>
         } else {
             params.put("lanesClosed", Integer.toString(1 + random.nextInt(2)));
         }
+
+        long now = getOs().getSimulationTime();
 
         for (String target : affected) {
             String id = String.format(
@@ -182,9 +183,6 @@ public final class FogApp extends AbstractApplication<ServerOperatingSystem>
     }
 
     private void logInfo(String message) {
-        getLog().infoSimTime(
-            this,
-            "[" + getOs().getId().toUpperCase(Locale.ROOT) + "] [INFO] " + message
-        );
+        getLog().infoSimTime(this, "[" + fogId + "] [INFO]  " + message);
     }
 }

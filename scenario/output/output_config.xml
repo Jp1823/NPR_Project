@@ -2,7 +2,7 @@
 <configuration xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
                xsi:noNamespaceSchemaLocation="http://www.dcaiti.tu-berlin.de/research/simulation/download/get/scenarios/scenarioname/visualizer/visualizer_config.xsd">
     <output id="fileoutput" enabled="true" update="5" loader="org.eclipse.mosaic.fed.output.generator.file.FileOutputLoader">
-        <filename>visualizer.csv</filename>
+        <filename>messages.csv</filename>
         <directory>.</directory>
         <separator>;</separator>
         <subscriptions>
@@ -12,8 +12,6 @@
                     <entry>Time</entry>
                     <entry>MessageId</entry>
                     <entry>SourceName</entry>
-                    <entry>SourcePosition.Latitude</entry>
-                    <entry>SourcePosition.Longitude</entry>
                     <entry>Message.Payload.ActualLength</entry>
                 </entries>
             </subscription>
@@ -26,32 +24,23 @@
                     <entry>ReceiverInformation.ReceiveTime</entry>
                 </entries>
             </subscription>
+        </subscriptions>
+    </output>
+    
+    <output id="fileoutput" enabled="true" update="5" loader="org.eclipse.mosaic.fed.output.generator.file.FileOutputLoader">
+        <filename>vehicles.csv</filename>
+        <directory>.</directory>
+        <separator>;</separator>
+        <subscriptions>
             <subscription id="VehicleUpdates">
                 <entries>
-                    <entry>"VEHICLE_UPDATES"</entry>
+                    <entry>"UPDATE"</entry>
                     <entry>Time</entry>
                     <entry>Updated:Name</entry>
                     <entry>Updated:Position.Latitude</entry>
                     <entry>Updated:Position.Longitude</entry>
                     <entry>Updated:Speed</entry>
                     <entry>Updated:Heading</entry>
-                </entries>
-            </subscription>
-            <subscription id="VehicleRegistration" enabled="true">
-                <entries>
-                    <entry>"VEHICLE_REGISTRATION"</entry>
-                    <entry>Time</entry>
-                    <entry>Mapping.Name</entry>
-                    <entry>Mapping.Applications</entry>
-                    <entry>Mapping.VehicleType.Name</entry>
-                </entries>
-            </subscription>
-            <subscription id="RsuRegistration" enabled="true">
-                <entries>
-                    <entry>"RSU_REGISTRATION"</entry>
-                    <entry>Time</entry>
-                    <entry>Mapping.Name</entry>
-                    <entry>Mapping.Applications</entry>
                 </entries>
             </subscription>
         </subscriptions>

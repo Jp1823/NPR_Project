@@ -25,7 +25,6 @@ import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import java.util.*;
 import java.util.concurrent.atomic.AtomicInteger;
-import java.util.stream.Collectors;
 
 public final class VehApp extends AbstractApplication<VehicleOperatingSystem>
         implements VehicleApplication, CommunicationApplication {
@@ -40,17 +39,35 @@ public final class VehApp extends AbstractApplication<VehicleOperatingSystem>
     private static final long   ACCIDENT_DURATION_NS = 30_000 * TIME.MILLI_SECOND;
     private static final long   RESUME_ACCEL_DURATION_NS = 1_000 * TIME.MILLI_SECOND;
 
-    private final Map<String, GeoPoint>   staticRsus    = new HashMap<>();
+    private static final Map<String, GeoPoint> STATIC_RSUS = new HashMap<>();
+    static {
+        STATIC_RSUS.put("RSU_0",  GeoPoint.latLon(52.451033, 13.295327, 0));
+        STATIC_RSUS.put("RSU_1",  GeoPoint.latLon(52.451406, 13.298062, 0));
+        STATIC_RSUS.put("RSU_2",  GeoPoint.latLon(52.452119, 13.301154, 0));
+        STATIC_RSUS.put("RSU_3",  GeoPoint.latLon(52.452153, 13.304256, 0));
+        STATIC_RSUS.put("RSU_4",  GeoPoint.latLon(52.450304, 13.301368, 0));
+        STATIC_RSUS.put("RSU_5",  GeoPoint.latLon(52.450268, 13.304328, 0));
+        STATIC_RSUS.put("RSU_6",  GeoPoint.latLon(52.448599, 13.305743, 0));
+        STATIC_RSUS.put("RSU_7",  GeoPoint.latLon(52.448538, 13.302883, 0));
+        STATIC_RSUS.put("RSU_8",  GeoPoint.latLon(52.447641, 13.301310, 0));
+        STATIC_RSUS.put("RSU_9",  GeoPoint.latLon(52.449290, 13.298481, 0));
+        STATIC_RSUS.put("RSU_10", GeoPoint.latLon(52.446686, 13.298421, 0));
+        STATIC_RSUS.put("RSU_11", GeoPoint.latLon(52.446557, 13.294261, 0));
+        STATIC_RSUS.put("RSU_12", GeoPoint.latLon(52.448404, 13.295637, 0));
+        STATIC_RSUS.put("RSU_13", GeoPoint.latLon(52.449206, 13.292616, 0));
+    }
+    
     private final Map<String, NodeRecord> neighborGraph = new HashMap<>();
-
-    private final Set<String> processedV2V   = new HashSet<>();
-    private final Set<String> processedAck   = new HashSet<>();
-
+    
+    private final Set<String>   processedV2V = new HashSet<>();
+    private final Set<String>   processedAck = new HashSet<>();
     private final AtomicInteger v2vSeq       = new AtomicInteger();
     private final AtomicInteger ackSeq       = new AtomicInteger();
 
+    private String  vehId;
     private boolean ready = false;
-    private double  heading, speed;
+    private double  heading = 0.0;
+    private double  speed = 0.0;
     private double  preAccidentSpeed = 0.0;
     private boolean inAccident = false;
 
@@ -59,11 +76,13 @@ public final class VehApp extends AbstractApplication<VehicleOperatingSystem>
     private volatile boolean pendingBrake = false;
     private volatile boolean pendingLaneChange = false;
 
-    private void logInfo(String msg)  { getLog().infoSimTime(this, "[" + id() + "] [INFO]  " + msg); }
-    private String id()               { return getOs().getId().toUpperCase(Locale.ROOT); }
-
     @Override
     public void onStartup() {
+
+        // Initialize vehicle ID
+        vehId = getOs().getId().toUpperCase(Locale.ROOT);
+
+        // Enable ad-hoc communication module
         getOs().getAdHocModule().enable(
             new AdHocModuleConfiguration()
                 .addRadio()
@@ -72,29 +91,16 @@ public final class VehApp extends AbstractApplication<VehicleOperatingSystem>
                 .distance(TX_RANGE_M)
                 .create()
         );
-        staticRsus.put("RSU_0", GeoPoint.latLon(52.451033, 13.295327, 0));
-        staticRsus.put("RSU_1", GeoPoint.latLon(52.451406, 13.298062, 0));
-        staticRsus.put("RSU_2", GeoPoint.latLon(52.452119, 13.301154, 0));
-        staticRsus.put("RSU_3", GeoPoint.latLon(52.452153, 13.304256, 0));
-        staticRsus.put("RSU_4", GeoPoint.latLon(52.450304, 13.301368, 0));
-        staticRsus.put("RSU_5", GeoPoint.latLon(52.450268, 13.304328, 0));
-        staticRsus.put("RSU_6", GeoPoint.latLon(52.448599, 13.305743, 0));
-        staticRsus.put("RSU_7", GeoPoint.latLon(52.448538, 13.302883, 0));
-        staticRsus.put("RSU_8", GeoPoint.latLon(52.447641, 13.301310, 0));
-        staticRsus.put("RSU_9", GeoPoint.latLon(52.449290, 13.298481, 0));
-        staticRsus.put("RSU_10", GeoPoint.latLon(52.446686, 13.298421, 0));
-        staticRsus.put("RSU_11", GeoPoint.latLon(52.446557, 13.294261, 0));
-        staticRsus.put("RSU_12", GeoPoint.latLon(52.448404, 13.295637, 0));
-        staticRsus.put("RSU_13", GeoPoint.latLon(52.449206, 13.292616, 0));
-        logInfo("VEHICLE APP INITIALIZED");
+
         scheduleNext();
+        logInfo("VEHICLE_INITIALIZATION");
     }
 
     @Override
     public void onShutdown() {
-        logInfo("VEHICLE APP TERMINATED");
         printProcessedIds();
         getOs().getAdHocModule().disable();
+        logInfo("VEHICLE_SHUTDOWN");
     }
 
     public void onVehicleUpdated(@Nullable org.eclipse.mosaic.lib.objects.vehicle.VehicleData prev,
@@ -161,13 +167,13 @@ public final class VehApp extends AbstractApplication<VehicleOperatingSystem>
     private void sendBeacon(long now) {
         Map<String, NodeRecord> payload = new HashMap<>(neighborGraph);
 
-        String msgId = "V2V-" + id() + "-" + v2vSeq.getAndIncrement();
+        String msgId = "V2V-" + vehId + "-" + v2vSeq.getAndIncrement();
         MessageRouting routing = newRouting();
         VehicleToVehicle v2v = new VehicleToVehicle(
             routing,
             msgId,
             now,
-            id(),
+            vehId,
             getOs().getPosition(),
             heading,
             speed,
@@ -219,7 +225,7 @@ public final class VehApp extends AbstractApplication<VehicleOperatingSystem>
         String sender = v2v.getSenderId().toUpperCase(Locale.ROOT);
         GeoPoint senderPos = v2v.getPosition();
 
-        double distSelf   = distance(getOs().getPosition(), senderPos);
+        double distSelf   = getOs().getPosition().distanceTo(senderPos);
         double distToRsu  = computeRsuDistance(senderPos);
         boolean reachableToRsu = distToRsu <= RSU_RANGE_M;
 
@@ -230,7 +236,7 @@ public final class VehApp extends AbstractApplication<VehicleOperatingSystem>
                 NodeRecord nr = v2v.getNeighborGraph().get(id);
                 return nr != null && nr.getDistanceFromVehicle() <= TX_RANGE_M;
             })
-            .collect(Collectors.toList());
+            .toList();
 
         NodeRecord recSelf = new NodeRecord(
             distSelf,
@@ -271,15 +277,14 @@ public final class VehApp extends AbstractApplication<VehicleOperatingSystem>
 
     private void handleR2V(RsuToVehicleMessage rtv) {
 
-        String me = id();
-        if (rtv.getForwardingTrail().contains(me)) {
+        if (rtv.getForwardingTrail().contains(vehId)) {
             return;
         }
-        if (!rtv.getNextHop().equalsIgnoreCase(me)) {
+        if (!rtv.getNextHop().equalsIgnoreCase(vehId)) {
             return;
         }
 
-        if (rtv.getVehicleTarget().equalsIgnoreCase(me)) {
+        if (rtv.getVehicleTarget().equalsIgnoreCase(vehId)) {
             logInfo("FINAL TARGET REACHED | SENDING ACK : UNIQUE_ID = " + rtv.getUniqueId());
             FogEventMessage ev = rtv.getCommandEvent();
             switch (ev.getEventType()) {
@@ -304,7 +309,8 @@ public final class VehApp extends AbstractApplication<VehicleOperatingSystem>
         if (rec != null && rec.getDistanceFromVehicle() <= TX_RANGE_M) {
             // logInfo("DIRECT DELIVERY TO DESTINATION : " + dst);
             List<String> trail = new ArrayList<>(rtv.getForwardingTrail());
-            trail.add(me);
+            trail.add(vehId);
+            
             RsuToVehicleMessage direct = new RsuToVehicleMessage(
                 newRouting(),
                 rtv.getUniqueId(),
@@ -328,7 +334,7 @@ public final class VehApp extends AbstractApplication<VehicleOperatingSystem>
         logInfo("FORWARDING RSU_TO_VEHICLE_MESSAGE : UNIQUE_ID = " + rtv.getUniqueId() +
                 " | NEXT_HOP = " + next);
         List<String> trail = new ArrayList<>(rtv.getForwardingTrail());
-        trail.add(me);
+        trail.add(vehId);
         RsuToVehicleMessage fwd = new RsuToVehicleMessage(
             newRouting(),
             rtv.getUniqueId(),
@@ -345,7 +351,7 @@ public final class VehApp extends AbstractApplication<VehicleOperatingSystem>
 
     private void sendAck(RsuToVehicleMessage rtv) {
         long now = getOs().getSimulationTime();
-        String uid = "ACK-" + id() + "-" + ackSeq.getAndIncrement();
+        String uid = "ACK-" + vehId + "-" + ackSeq.getAndIncrement();
     
         List<String> backPath = new ArrayList<>(rtv.getForwardingTrail());
         Collections.reverse(backPath);
@@ -364,7 +370,7 @@ public final class VehApp extends AbstractApplication<VehicleOperatingSystem>
             rtv.getUniqueId(),
             now,
             now + (10000 * TIME.MILLI_SECOND),
-            id(),
+            vehId,
             rtv.getRsuSource(),
             nextHop,
             checklist
@@ -375,14 +381,13 @@ public final class VehApp extends AbstractApplication<VehicleOperatingSystem>
     }
 
     private void forwardAck(VehicleToRsuACK ack) {
-        String me = id();
     
         if (!processedAck.add(ack.getUniqueId())) {
             // logDebug("IGNORED VEHICLE_TO_RSU_ACK : DUPLICATE");
             return;
         }
     
-        if (!ack.getNextHop().equalsIgnoreCase(me)) {
+        if (!ack.getNextHop().equalsIgnoreCase(vehId)) {
             // logDebug("IGNORED VEHICLE_TO_RSU_ACK : WRONG_NEXT_HOP");
             return;
         }
@@ -433,20 +438,18 @@ public final class VehApp extends AbstractApplication<VehicleOperatingSystem>
     }
 
     private String chooseNextHop(String dst) {
-        String me = id();
     
         List<String> direct = neighborGraph.entrySet().stream()
             .filter(e -> e.getValue().getDistanceFromVehicle() <= TX_RANGE_M)
             .map(Map.Entry::getKey)
-            .filter(n -> !n.equalsIgnoreCase(me))
-            .collect(Collectors.toList());
+            .filter(n -> !n.equalsIgnoreCase(vehId))
+            .toList();
         if (direct.isEmpty()) return null;
 
         List<String> twoHop = direct.stream()
             .filter(n -> neighborGraph.get(n).getReachableNeighbors().contains(dst))
-            .collect(Collectors.toList());
+            .toList();
         if (!twoHop.isEmpty()) {
-
             return twoHop.stream()
                 .min(Comparator.comparingDouble(n -> neighborGraph.get(n).getDistanceFromVehicle()))
                 .get();
@@ -541,23 +544,14 @@ public final class VehApp extends AbstractApplication<VehicleOperatingSystem>
     }
 
     private double computeRsuDistance(GeoPoint p) {
-        return distance(p, staticRsus.get("RSU_0"));
-    }
-
-    private double distance(GeoPoint a, GeoPoint b) {
-        double R = 6_371_000;
-        double dLat = Math.toRadians(b.getLatitude() - a.getLatitude());
-        double dLon = Math.toRadians(b.getLongitude() - a.getLongitude());
-        double sLat = Math.sin(dLat / 2);
-        double sLon = Math.sin(dLon / 2);
-        double h    = sLat * sLat +
-                      Math.cos(Math.toRadians(a.getLatitude())) *
-                      Math.cos(Math.toRadians(b.getLatitude())) *
-                      sLon * sLon;
-        return 2 * R * Math.atan2(Math.sqrt(h), Math.sqrt(1 - h));
+        return p.distanceTo(STATIC_RSUS.get("RSU_0"));
     }
 
     @Override public void onMessageTransmitted(V2xMessageTransmission tx) { }
     @Override public void onAcknowledgementReceived(ReceivedAcknowledgement ack) { }
     @Override public void onCamBuilding(CamBuilder cb) { }
+
+    private void logInfo(String msg) { 
+        getLog().infoSimTime(this, "[" + vehId + "] [INFO]  " + msg);
+    }
 }

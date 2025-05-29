@@ -57,11 +57,7 @@ public final class VehApp extends AbstractApplication<VehicleOperatingSystem>
         Map.entry("rsu_13", GeoPoint.latLon(52.449206, 13.292616, 0))
     );
 
-    private final MessageRouting broadcastRouting = getOs().getAdHocModule()
-        .createMessageRouting()
-        .broadcast()
-        .topological()
-        .build();
+    private MessageRouting broadcastRouting;
 
     // Vehicle state
     private final Map<String, NodeRecord> neighborsGraph = new HashMap<>();
@@ -93,6 +89,13 @@ public final class VehApp extends AbstractApplication<VehicleOperatingSystem>
                 .distance(TX_RANGE_M)
                 .create()
         );
+
+        // Initialize broadcast routing
+        broadcastRouting = getOs().getAdHocModule()
+            .createMessageRouting()
+            .broadcast()
+            .topological()
+            .build();
 
         scheduleEvent();
         logInfo("VEHICLE_INITIALIZATION");

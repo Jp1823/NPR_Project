@@ -41,7 +41,7 @@ public final class EventACK extends V2xMessage {
 
     public long   getTimestamp()         { return timestamp; }
     public long   getExpiryTimestamp()   { return expiryTimestamp; }
-    public List<String> getChecklist()   { return checklist; }
+    public List<String> getChecklist()   { return List.copyOf(checklist); }
     
     public String getNextHop() {
         return checklist.isEmpty() ? null : checklist.getLast();

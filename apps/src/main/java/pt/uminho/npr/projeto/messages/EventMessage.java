@@ -51,7 +51,7 @@ public abstract class EventMessage extends V2xMessage {
     public long         getTimestamp()       { return timestamp; }
     public long         getExpiryTimestamp() { return expiryTimestamp; }
     public String       getTarget()          { return target; }
-    public List<String> getForwardingTrail() { return forwardingTrail; }
+    public List<String> getForwardingTrail() { return List.copyOf(forwardingTrail); }
 
     public String getNextHop() {
         return forwardingTrail.isEmpty() ? null : forwardingTrail.getLast();

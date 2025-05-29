@@ -101,7 +101,7 @@ public final class CamMessage extends V2xMessage {
     public boolean  isLeftTurnSignalOn()  { return leftTurnSignalOn; }
     public boolean  isRightTurnSignalOn() { return rightTurnSignalOn; }
     public int      getTimeToLive()       { return timeToLive; }
-    public Map<String, NodeRecord> getNeighborsGraph() { return neighborsGraph; }
+    public Map<String, NodeRecord> getNeighborsGraph() { return Map.copyOf(neighborsGraph); }
 
     @Override
     public String toString() {

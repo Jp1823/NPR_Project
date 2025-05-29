@@ -34,17 +34,8 @@ public final class RsuApp extends AbstractApplication<RoadSideUnitOperatingSyste
     private static final double W_STABILITY    =  5.0;
     private static final double W_FAIRNESS     =  5.0;
 
-    private final MessageRouting cellRoutingToFog = getOs().getCellModule()
-        .createMessageRouting()
-        .destination("server_0")
-        .topological()
-        .build();
-
-    private final MessageRouting broadcastRouting = getOs().getAdHocModule()
-        .createMessageRouting()
-        .broadcast()
-        .topological()
-        .build();
+    private MessageRouting cellRoutingToFog;
+    private MessageRouting broadcastRouting;
     
     private final Map<String, NodeRecord> neighbors = new HashMap<>();
     private final Map<String, Integer> fairnessCount = new HashMap<>();
@@ -70,6 +61,18 @@ public final class RsuApp extends AbstractApplication<RoadSideUnitOperatingSyste
             .maxDownlinkBitrate(50 * DATA.MEGABIT)
             .maxUplinkBitrate(50 * DATA.MEGABIT)
         );
+
+        // Initialize Message Routings
+        cellRoutingToFog = getOs().getCellModule()
+            .createMessageRouting()
+            .destination("server_0")
+            .topological()
+            .build();
+        broadcastRouting = getOs().getAdHocModule()
+            .createMessageRouting()
+            .broadcast()
+            .topological()
+            .build();
         
         scheduleEvent();
         logInfo("RSU_INITIALIZATION");

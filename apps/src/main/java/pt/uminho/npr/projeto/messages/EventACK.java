@@ -12,14 +12,15 @@ public final class EventACK extends V2xMessage {
     private final List<String> checklist;
 
     public EventACK(MessageRouting routing,
-                           int ackId,
-                           long timestamp,
-                           long expiryTimestamp,
-                           List<String> checklist) {
+                    int ackId,
+                    long timestamp,
+                    long expiryTimestamp,
+                    List<String> checklist) {
+
         super(routing, ackId);
-        this.timestamp         = timestamp;
-        this.expiryTimestamp   = expiryTimestamp;
-        this.checklist         = List.copyOf(checklist);
+        this.timestamp = timestamp;
+        this.expiryTimestamp = expiryTimestamp;
+        this.checklist = checklist;
     }
 
     @Nonnull @Override
@@ -41,10 +42,14 @@ public final class EventACK extends V2xMessage {
 
     public long   getTimestamp()         { return timestamp; }
     public long   getExpiryTimestamp()   { return expiryTimestamp; }
-    public List<String> getChecklist()   { return List.copyOf(checklist); }
+    public List<String> getChecklist()   { return checklist; }
     
     public String getNextHop() {
         return checklist.isEmpty() ? null : checklist.getLast();
+    }
+
+    public boolean hasNextHop() {
+        return !checklist.isEmpty();
     }
 
     @Override

@@ -202,14 +202,14 @@ public final class VehApp extends AbstractApplication<VehicleOperatingSystem>
             */
             handleCamReceived(cam);
 
-        } else if (msg instanceof EventMessage event && event.getNextHop().equals(vehId) && processedEvents.add(event.getId())) {
+        } else if (msg instanceof EventMessage event && event.hasNextHop() && event.getNextHop().equals(vehId) && processedEvents.add(event.getId())) {
             // Process event message if it is directed to this vehicle and not already processed
             logInfo("EVENT MESSAGE RECEIVED: EVENT_ID =" + event.getId() +
                     " | VEHICLE_TARGET = " + event.getTarget() +
                     " | EVENT_TYPE = " + event.getSimpleClassName());
             handleEventMessage(event);
 
-        } else if (msg instanceof EventACK ack && ack.getNextHop().equals(vehId)) {
+        } else if (msg instanceof EventACK ack && ack.hasNextHop() && ack.getNextHop().equals(vehId)) {
             // Process the ack if it is directed to this vehicle
             logInfo("EVENT ACK RECEIVED:" +
                     " | ACK_ID = " + ack.getId() +
@@ -368,6 +368,7 @@ public final class VehApp extends AbstractApplication<VehicleOperatingSystem>
         // Add the next hop to the forwarding trail
         List<String> forwardingTrail = event.getForwardingTrail();
         forwardingTrail.add(nextHop);
+        logInfo(vehId + " | FORWARDING TRAIL SIZE: " + forwardingTrail.size());
 
         // Copy the message to forward the event
         EventMessage eventCopy = new AccidentEvent(
@@ -402,6 +403,7 @@ public final class VehApp extends AbstractApplication<VehicleOperatingSystem>
         // Remove the last hop (this vehicle)
         List<String> checklist = ack.getChecklist();
         checklist.removeLast(); 
+        logInfo(vehId + " | check list SIZE: " + checklist.size());
 
         // Copy the ACK message to forward it
         EventACK ackCopy = new EventACK(

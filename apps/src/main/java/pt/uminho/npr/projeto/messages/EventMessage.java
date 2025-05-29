@@ -23,11 +23,12 @@ public abstract class EventMessage extends V2xMessage {
                            long expiryTimestamp,
                            String target,
                            List<String> forwardingTrail) {
+
         super(routing, eventId);
         this.timestamp       = timestamp;
         this.expiryTimestamp = expiryTimestamp;
         this.target          = target;
-        this.forwardingTrail = List.copyOf(forwardingTrail);
+        this.forwardingTrail = forwardingTrail;
     }
 
     @Nonnull @Override
@@ -51,10 +52,14 @@ public abstract class EventMessage extends V2xMessage {
     public long         getTimestamp()       { return timestamp; }
     public long         getExpiryTimestamp() { return expiryTimestamp; }
     public String       getTarget()          { return target; }
-    public List<String> getForwardingTrail() { return List.copyOf(forwardingTrail); }
+    public List<String> getForwardingTrail() { return forwardingTrail; }
 
     public String getNextHop() {
         return forwardingTrail.isEmpty() ? null : forwardingTrail.getLast();
+    }
+
+    public boolean hasNextHop() {
+        return !forwardingTrail.isEmpty();
     }
 
     @Override

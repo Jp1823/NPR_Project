@@ -118,13 +118,13 @@ public final class FogApp extends AbstractApplication<ServerOperatingSystem>
         }
 
         // Remove the event from the open events list
-        openEvents.remove(ack.getId());
+        openEvents.remove((Integer)ack.getId());
         logInfo(String.format(
             "EVENT_CLOSED : EVENT_ID: %d",
             ack.getId()
         ));
     }
-    
+
     @Override
     public void processEvent(Event event) {
         cleanVars();
@@ -169,7 +169,7 @@ public final class FogApp extends AbstractApplication<ServerOperatingSystem>
             now, 
             now + EVENT_TTL, 
             target, 
-            List.of(), // No forwarding trail for now
+            new ArrayList<>(), // No forwarding trail for now
             severity
         );
         

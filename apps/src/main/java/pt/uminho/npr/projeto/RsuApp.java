@@ -17,7 +17,12 @@ import org.eclipse.mosaic.rti.TIME;
 import pt.uminho.npr.projeto.messages.*;
 import pt.uminho.npr.projeto.records.NodeRecord;
 
-import java.util.*;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 public final class RsuApp extends AbstractApplication<RoadSideUnitOperatingSystem>
@@ -99,14 +104,14 @@ public final class RsuApp extends AbstractApplication<RoadSideUnitOperatingSyste
             // logInfo("PROCESSING VEHICLE TO VEHICLE MESSAGE ID = " + v2v.getMessageId());
             handleCamReceived(cam);
 
-        } else if (msg instanceof EventACK ack && ack.getNextHop().equals(rsuId)) {
+        } else if (msg instanceof EventACK ack && ack.hasNextHop() && ack.getNextHop().equals(rsuId)) {
             // Process the ACK message if it is for this RSU
             logInfo(String.format(
                 "ACK_RECEIVED : UNIQUE_ID: %s", ack.getId()
             ));
             handleAckReceived(ack);
             
-        } else if (msg instanceof EventMessage event && event.getNextHop() == null) {
+        } else if (msg instanceof EventMessage event && !event.hasNextHop()) {
             // If the next hop is null, it means the event came from the fog
             logInfo(String.format(
                 "EVENT_RECEIVED : UNIQUE_ID: %s | EVENT_TYPE: %s | VEHICLE_TARGET: %s", event.getId(), event.getClass().getSimpleName(), event.getTarget()
@@ -170,7 +175,8 @@ public final class RsuApp extends AbstractApplication<RoadSideUnitOperatingSyste
 
         // Remove the last hop (this rsu)
         List<String> checklist = ack.getChecklist();
-        checklist.removeLast(); 
+        checklist.removeLast();
+        logInfo(rsuId + " | CHECKLIST SIZE: " + checklist.size());
 
         // Copy the ACK message to forward it
         EventACK ackCopy = new EventACK(
@@ -219,9 +225,11 @@ public final class RsuApp extends AbstractApplication<RoadSideUnitOperatingSyste
             return;
         }
     
-        // Add the next hop to the forwarding trail
+        // Add itself and the next hop to the forwarding trail
         List<String> forwardingTrail = event.getForwardingTrail();
+        forwardingTrail.add(rsuId);
         forwardingTrail.add(nextHop);
+        logInfo(rsuId + " | FORWARDING TRAIL SIZE: " + forwardingTrail.size());
 
         // Copy the message to forward the event
         EventMessage eventCopy = new AccidentEvent(

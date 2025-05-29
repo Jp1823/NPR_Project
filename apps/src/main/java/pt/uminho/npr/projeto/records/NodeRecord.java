@@ -1,8 +1,6 @@
 package pt.uminho.npr.projeto.records;
 
-import java.util.Collections;
 import java.util.List;
-import java.util.Objects;
 
 public final class NodeRecord {
 
@@ -22,12 +20,8 @@ public final class NodeRecord {
         this.distanceFromVehicle  = distanceFromVehicle;
         this.distanceToClosestRsu = distanceToClosestRsu;
         this.reachableToRsu       = reachableToRsu;
-        this.reachableNeighbors   = Collections.unmodifiableList(
-            List.copyOf(Objects.requireNonNull(reachableNeighbors))
-        );
-        this.directNeighbors      = Collections.unmodifiableList(
-            List.copyOf(Objects.requireNonNull(directNeighbors))
-        );
+        this.reachableNeighbors   = reachableNeighbors;
+        this.directNeighbors      = directNeighbors;
         this.creationTimestamp    = creationTimestamp;
     }
 

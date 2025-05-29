@@ -35,7 +35,8 @@ public final class CamMessage extends V2xMessage {
                         boolean leftTurnSignalOn,
                         boolean rightTurnSignalOn,
                         int timeToLive,
-                        Map<String, NodeRecord> neighborGraph) {
+                        Map<String, NodeRecord> neighborsGraph) {
+
         super(routing, camId);
         this.timeStamp           = timeStamp;
         this.vehId               = vehId;
@@ -47,7 +48,7 @@ public final class CamMessage extends V2xMessage {
         this.leftTurnSignalOn    = leftTurnSignalOn;
         this.rightTurnSignalOn   = rightTurnSignalOn;
         this.timeToLive          = timeToLive;
-        this.neighborsGraph       = new HashMap<>(neighborGraph);
+        this.neighborsGraph      = neighborsGraph;
     }
 
     @Nonnull @Override
@@ -101,7 +102,7 @@ public final class CamMessage extends V2xMessage {
     public boolean  isLeftTurnSignalOn()  { return leftTurnSignalOn; }
     public boolean  isRightTurnSignalOn() { return rightTurnSignalOn; }
     public int      getTimeToLive()       { return timeToLive; }
-    public Map<String, NodeRecord> getNeighborsGraph() { return Map.copyOf(neighborsGraph); }
+    public Map<String, NodeRecord> getNeighborsGraph() { return neighborsGraph; }
 
     @Override
     public String toString() {

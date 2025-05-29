@@ -21,7 +21,7 @@ public final class CamMessage extends V2xMessage {
     private final boolean  leftTurnSignalOn;
     private final boolean  rightTurnSignalOn;
     private final int      timeToLive;
-    private final Map<String, NodeRecord> neighborGraph;
+    private final Map<String, NodeRecord> neighborsGraph;
 
     public CamMessage(MessageRouting routing,
                         int camId,
@@ -47,7 +47,7 @@ public final class CamMessage extends V2xMessage {
         this.leftTurnSignalOn    = leftTurnSignalOn;
         this.rightTurnSignalOn   = rightTurnSignalOn;
         this.timeToLive          = timeToLive;
-        this.neighborGraph       = new HashMap<>(neighborGraph);
+        this.neighborsGraph       = new HashMap<>(neighborGraph);
     }
 
     @Nonnull @Override
@@ -65,8 +65,8 @@ public final class CamMessage extends V2xMessage {
             out.writeBoolean(leftTurnSignalOn);
             out.writeBoolean(rightTurnSignalOn);
             out.writeInt(timeToLive);
-            out.writeInt(neighborGraph.size());
-            for (Map.Entry<String, NodeRecord> entry : neighborGraph.entrySet()) {
+            out.writeInt(neighborsGraph.size());
+            for (Map.Entry<String, NodeRecord> entry : neighborsGraph.entrySet()) {
                 String nodeId = entry.getKey();
                 NodeRecord nodeRecord = entry.getValue();
                 out.writeUTF(nodeId);
@@ -101,7 +101,7 @@ public final class CamMessage extends V2xMessage {
     public boolean  isLeftTurnSignalOn()  { return leftTurnSignalOn; }
     public boolean  isRightTurnSignalOn() { return rightTurnSignalOn; }
     public int      getTimeToLive()       { return timeToLive; }
-    public Map<String, NodeRecord> getNeighborGraph() { return neighborGraph; }
+    public Map<String, NodeRecord> getNeighborsGraph() { return neighborsGraph; }
 
     @Override
     public String toString() {
@@ -116,7 +116,7 @@ public final class CamMessage extends V2xMessage {
                " | LEFT_TURN_SIGNAL_ON: " + leftTurnSignalOn +
                " | RIGHT_TURN_SIGNAL_ON: " + rightTurnSignalOn +
                " | TIME_TO_LIVE: " + timeToLive +
-               " | NEIGHBOR_GRAPH_SIZE: " + neighborGraph.size() +
+               " | NEIGHBOR_GRAPH_SIZE: " + neighborsGraph.size() +
                " | TIMESTAMP: " + timeStamp;
     }
 }

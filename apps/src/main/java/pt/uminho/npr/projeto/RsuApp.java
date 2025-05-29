@@ -34,11 +34,23 @@ public final class RsuApp extends AbstractApplication<RoadSideUnitOperatingSyste
     private static final double W_STABILITY    =  5.0;
     private static final double W_FAIRNESS     =  5.0;
 
-    private final Map<String, NodeRecord>   neighbors     = new HashMap<>();
-    private final Map<String, Set<Integer>> seenIds       = new HashMap<>();
-    private final Map<String, Integer>      fairnessCount = new HashMap<>();
-    private String rsuId;
+    private final MessageRouting cellRoutingToFog = getOs().getCellModule()
+        .createMessageRouting()
+        .destination("server_0")
+        .topological()
+        .build();
 
+    private final MessageRouting broadcastRouting = getOs().getAdHocModule()
+        .createMessageRouting()
+        .broadcast()
+        .topological()
+        .build();
+    
+    private final Map<String, NodeRecord> neighbors = new HashMap<>();
+    private final Map<String, Integer> fairnessCount = new HashMap<>();
+    private final Set<Integer> seenCams = new HashSet<>();
+    private String rsuId;
+    
     @Override
     public void onStartup() {
         
@@ -79,54 +91,36 @@ public final class RsuApp extends AbstractApplication<RoadSideUnitOperatingSyste
     @Override
     public void onMessageReceived(ReceivedV2xMessage in) {
         V2xMessage msg = in.getMessage();
-        String type    = msg.getClass().getSimpleName();
-
-        Set<Integer> seenForType = seenIds.computeIfAbsent(type, k -> new HashSet<>());
-        if (!seenForType.add(msg.getId())) {
-            // logInfo("DUPLICATE MESSAGE ID = " + uid + " DETECTED – DISCARDED");
-            return;
-        }
-
-        if (msg instanceof CamMessage v2v) {
+        
+        if (msg instanceof CamMessage cam && seenCams.add(cam.getId())) {
             // logInfo("PROCESSING VEHICLE TO VEHICLE MESSAGE ID = " + v2v.getMessageId());
-            forwardToFog(v2v);
-            handleV2V(v2v);
+            handleCamReceived(cam);
 
-        } else if (msg instanceof EventACK ack) {
+        } else if (msg instanceof EventACK ack && ack.getNextHop().equals(rsuId)) {
+            // Process the ACK message if it is for this RSU
             logInfo(String.format(
                 "ACK_RECEIVED : UNIQUE_ID: %s", ack.getId()
             ));
-            forwardToFog(ack);
+            handleAckReceived(ack);
             
-        } else if (msg instanceof FogToRsuMessage f2r) {
+        } else if (msg instanceof EventMessage event && event.getNextHop() == null) {
+            // If the next hop is null, it means the event came from the fog
             logInfo(String.format(
-                "FOG_COMMAND_RECEIVED : UNIQUE_ID: %s | EVENT_TYPE: %s", f2r.getId(), f2r.getCommandEvent().getEventType()
+                "EVENT_RECEIVED : UNIQUE_ID: %s | EVENT_TYPE: %s | VEHICLE_TARGET: %s", event.getId(), event.getClass().getSimpleName(), event.getTarget()
             ));
-            handleFogCommand(f2r);
+            handleEventReceived(event);
         }
     }
 
-    private void forwardToFog(V2xMessage inner) {
-        MessageRouting routing = newRoutingCell();
-        RsuToFogMessage rtf = new RsuToFogMessage(
-            routing,
-            getOs().getSimulationTime(),
-            rsuId,
-            inner
-        );
-        getOs().getCellModule().sendV2xMessage(rtf);
-        // logInfo("RTF MESSAGE ID = " + rtf.getUniqueId() + " SENT TO FOG ID = " + fogId);
-    }
+    private void handleCamReceived(CamMessage cam) {
 
-    private void handleV2V(CamMessage v2v) {
-
-        String vid = v2v.getVehId();
-        double d   = getOs().getPosition().distanceTo(v2v.getPosition());
+        String vid = cam.getVehId();
+        double d   = getOs().getPosition().distanceTo(cam.getPosition());
         boolean reachable = d <= TX_RANGE_M;
-        List<String> reachableNeighbors = new ArrayList<>(v2v.getNeighborGraph().keySet());
+        List<String> reachableNeighbors = new ArrayList<>(cam.getNeighborsGraph().keySet());
         List<String> directNeighbors = reachableNeighbors.stream()
             .filter(id -> {
-                NodeRecord nr = v2v.getNeighborGraph().get(id);
+                NodeRecord nr = cam.getNeighborsGraph().get(id);
                 return nr != null && nr.getDistanceFromVehicle() <= TX_RANGE_M;
             })
             .toList();
@@ -137,63 +131,112 @@ public final class RsuApp extends AbstractApplication<RoadSideUnitOperatingSyste
             reachable,
             reachableNeighbors,
             directNeighbors,
-            v2v.getTimeStamp()
+            cam.getTimeStamp()
         );
         neighbors.put(vid, rec);
+        
+        CamMessage camCopy = new CamMessage(
+            cellRoutingToFog,
+            cam.getId(),
+            cam.getVehId(),
+            cam.getTimeStamp(),
+            cam.getPosition(),
+            cam.getHeading(),
+            cam.getSpeed(),
+            cam.getAcceleration(),
+            cam.isBrakeLightOn(),
+            cam.isLeftTurnSignalOn(),
+            cam.isRightTurnSignalOn(),
+            cam.getTimeToLive(),
+            cam.getNeighborsGraph()
+        );
+        getOs().getCellModule().sendV2xMessage(camCopy);
+        // logInfo("RTF MESSAGE ID = " + rtf.getUniqueId() + " SENT TO FOG ID = " + fogId);
     }
 
-    private void handleFogCommand(FogToRsuMessage f2r) {
-        
-        String dst = f2r.getVehicleTarget();
-        NodeRecord rec = neighbors.get(dst);
-    
-        String nextHop = null;
-        if (rec != null && rec.isReachableToRsu()) {
-            nextHop = dst;
-        } else {
-            nextHop = selectNextHop(dst);
-        }
-    
-        if (nextHop == null) {
+    private void handleAckReceived(EventACK ack) {
+
+        // If the ACK is expired, do not process it
+        if (ack.getExpiryTimestamp() < getOs().getSimulationTime()) {
+            logInfo(String.format(
+                "ACK_NOT_FORWARDED : UNIQUE_ID: %s | ACK_EXPIRED",
+                ack.getId()
+            ));
             return;
         }
-    
-        List<String> initialTrail = List.of(rsuId);
-    
-        EventMessage event = f2r.getCommandEvent();
-    
-        RsuToVehicleMessage rtv = new RsuToVehicleMessage(
-            newRoutingAdHoc(),
-            f2r.getTimestamp(),
-            f2r.getExpiryTimestamp(),
-            rsuId,
-            dst,
-            nextHop,
-            event,
-            initialTrail
+
+        // Remove the last hop (this rsu)
+        List<String> checklist = ack.getChecklist();
+        checklist.removeLast(); 
+
+        // Copy the ACK message to forward it
+        EventACK ackCopy = new EventACK(
+            cellRoutingToFog,
+            ack.getId(),
+            ack.getTimestamp(),
+            ack.getExpiryTimestamp(),
+            checklist
         );
-    
-        getOs().getAdHocModule().sendV2xMessage(rtv);
+
+        getOs().getCellModule().sendV2xMessage(ackCopy);
         logInfo(String.format(
-            "EVENT_FORWARDED_TO_VEHICLE : UNIQUE_ID: %s | VEHICLE_TARGET: %s | NEXT_HOP: %s",
-            f2r.getCommandEvent().getId(), dst, nextHop
+            "ACK_FORWARDED_TO_FOG : UNIQUE_ID: %s",
+            ack.getId()
         ));
     }
 
-    private MessageRouting newRoutingAdHoc() {
-        return getOs().getAdHocModule()
-            .createMessageRouting()
-            .broadcast()
-            .topological()
-            .build();
-    }   
+    private void handleEventReceived(EventMessage event) {
+        
+        // If the event is expired, do not process it
+        if (event.getExpiryTimestamp() < getOs().getSimulationTime()) {
+            logInfo(String.format(
+                "EVENT_NOT_FORWARDED : UNIQUE_ID: %s | VEHICLE_TARGET: %s | EVENT_EXPIRED",
+                event.getId(), event.getTarget()
+            ));
+            return;
+        }
 
-    private MessageRouting newRoutingCell() {
-        return getOs().getCellModule()
-            .createMessageRouting()
-            .destination("server_0")
-            .topological()
-            .build();
+        // Get the target vehicle from the event
+        String target = event.getTarget();
+    
+        // If the target vehicle is not in the neighbor list, try to select a next hop
+        String nextHop = null;
+        if (neighbors.get(target) != null) {
+            nextHop = target;
+        } else {
+            nextHop = selectNextHop(target);
+        }
+    
+        // If no next hop is found, do not forward the event
+        if (nextHop == null) {
+            logInfo(String.format(
+                "EVENT_NOT_FORWARDED : UNIQUE_ID: %s | VEHICLE_TARGET: %s | NO_NEXT_HOP_FOUND",
+                event.getId(), target
+            ));
+            return;
+        }
+    
+        // Add the next hop to the forwarding trail
+        List<String> forwardingTrail = event.getForwardingTrail();
+        forwardingTrail.add(nextHop);
+
+        // Copy the message to forward the event
+        EventMessage eventCopy = new AccidentEvent(
+            broadcastRouting,
+            event.getId(),
+            event.getTimestamp(),
+            event.getExpiryTimestamp(),
+            event.getTarget(),
+            forwardingTrail,
+            ((AccidentEvent) event).getSeverity()
+        );
+        
+        // Send the event message
+        getOs().getAdHocModule().sendV2xMessage(eventCopy);
+        logInfo(String.format(
+            "EVENT_FORWARDED_TO_VEHICLE : UNIQUE_ID: %s | VEHICLE_TARGET: %s | NEXT_HOP: %s",
+            event.getId(), target, nextHop
+        ));
     }
 
     private String selectNextHop(String dst) {

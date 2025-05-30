@@ -4,7 +4,7 @@
       "name": "Car",
       "length": "4.0 m",
       "minGap": "2.5 m",
-      "maxSpeed": "40.0 m/s",
+      "maxSpeed": "20.0 m/s",
       "vehicleClass": "Car",
       "accel": 2.6,
       "decel": 4.5,

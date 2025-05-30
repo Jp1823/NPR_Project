@@ -101,7 +101,6 @@ public final class RsuApp extends AbstractApplication<RoadSideUnitOperatingSyste
         V2xMessage msg = in.getMessage();
         
         if (msg instanceof CamMessage cam && seenCams.add(cam.getId())) {
-            // logInfo("PROCESSING VEHICLE TO VEHICLE MESSAGE ID = " + v2v.getMessageId());
             handleCamReceived(cam);
 
         } else if (msg instanceof EventACK ack && ack.hasNextHop() && ack.getNextHop().equals(rsuId)) {
@@ -111,8 +110,8 @@ public final class RsuApp extends AbstractApplication<RoadSideUnitOperatingSyste
             ));
             handleAckReceived(ack);
             
-        } else if (msg instanceof EventMessage event && !event.hasNextHop()) {
-            // If the next hop is null, it means the event came from the fog
+        } else if (msg instanceof EventMessage event && event.hasNextHop() && event.getNextHop().equals(rsuId)) {
+            // Process the Event message if it is for this RSU
             logInfo(String.format(
                 "EVENT_RECEIVED : UNIQUE_ID: %s | EVENT_TYPE: %s | VEHICLE_TARGET: %s", event.getId(), event.getClass().getSimpleName(), event.getTarget()
             ));
@@ -139,27 +138,21 @@ public final class RsuApp extends AbstractApplication<RoadSideUnitOperatingSyste
             reachable,
             reachableNeighbors,
             directNeighbors,
-            cam.getTimeStamp()
+            cam.getTimestamp()
         );
         neighbors.put(vid, rec);
         
+        // Copy the CAM message to forward it to the fog
         CamMessage camCopy = new CamMessage(
             cellRoutingToFog,
             cam.getId(),
             cam.getVehId(),
-            cam.getTimeStamp(),
+            cam.getTimestamp(),
+            0, // Time to live is not used in this context
             cam.getPosition(),
-            cam.getHeading(),
-            cam.getSpeed(),
-            cam.getAcceleration(),
-            cam.isBrakeLightOn(),
-            cam.isLeftTurnSignalOn(),
-            cam.isRightTurnSignalOn(),
-            cam.getTimeToLive(),
             cam.getNeighborsGraph()
         );
         getOs().getCellModule().sendV2xMessage(camCopy);
-        // logInfo("RTF MESSAGE ID = " + rtf.getUniqueId() + " SENT TO FOG ID = " + fogId);
     }
 
     private void handleAckReceived(EventACK ack) {
@@ -176,7 +169,6 @@ public final class RsuApp extends AbstractApplication<RoadSideUnitOperatingSyste
         // Remove the last hop (this rsu)
         List<String> checklist = ack.getChecklist();
         checklist.removeLast();
-        logInfo(rsuId + " | CHECKLIST SIZE: " + checklist.size());
 
         // Copy the ACK message to forward it
         EventACK ackCopy = new EventACK(
@@ -225,11 +217,9 @@ public final class RsuApp extends AbstractApplication<RoadSideUnitOperatingSyste
             return;
         }
     
-        // Add itself and the next hop to the forwarding trail
+        // Add the next hop to the forwarding trail
         List<String> forwardingTrail = event.getForwardingTrail();
-        forwardingTrail.add(rsuId);
         forwardingTrail.add(nextHop);
-        logInfo(rsuId + " | FORWARDING TRAIL SIZE: " + forwardingTrail.size());
 
         // Copy the message to forward the event
         EventMessage eventCopy = new AccidentEvent(

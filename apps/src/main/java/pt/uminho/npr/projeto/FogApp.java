@@ -95,8 +95,9 @@ public final class FogApp extends AbstractApplication<ServerOperatingSystem>
     public void onMessageReceived(ReceivedV2xMessage incoming) {
         V2xMessage msg = incoming.getMessage();
         
-        if (msg instanceof CamMessage v2v) {
-            vehicleStates.put(v2v.getVehId(), v2v);
+        if (msg instanceof CamMessage cam) {
+            // Store the last cam message for the vehicle
+            vehicleStates.put(cam.getVehId(), cam);
 
         } else if (msg instanceof EventACK ack) {
             logInfo(String.format(
@@ -118,7 +119,7 @@ public final class FogApp extends AbstractApplication<ServerOperatingSystem>
         }
 
         // Remove the event from the open events list
-        openEvents.remove((Integer)ack.getId());
+        openEvents.remove((Integer)ack.getId()); // Integer cast to avoid ambiguity and ensure use of remove(Object)
         logInfo(String.format(
             "EVENT_CLOSED : EVENT_ID: %d",
             ack.getId()
@@ -139,7 +140,7 @@ public final class FogApp extends AbstractApplication<ServerOperatingSystem>
     private void purgeVehicleStates() {
         long now = getOs().getSimulationTime();
         vehicleStates.entrySet().removeIf(
-            e -> now - e.getValue().getTimeStamp() > VEH_STATE_TTL
+            e -> now - e.getValue().getTimestamp() > VEH_STATE_TTL
         );
     }
 
@@ -162,14 +163,21 @@ public final class FogApp extends AbstractApplication<ServerOperatingSystem>
         List<String> levels = List.of("LOW", "MEDIUM", "HIGH");
         String severity = levels.get(random.nextInt(levels.size()));
 
+        // Select the best RSU based on the target vehicle's position
+        String rsuId = getClosestRsu(targetInfo.getPosition());
+        logInfo(String.format(
+            "EVENT_ROUTING : ID: %s | RSU: %s",
+            id, rsuId
+        ));
+
         // Generate the event message, based on the type
         EventMessage event = new AccidentEvent(
-            newRouting(targetInfo), 
+            newRouting(rsuId), 
             id, 
             now, 
             now + EVENT_TTL, 
             target, 
-            new ArrayList<>(), // No forwarding trail for now
+            new ArrayList<>(List.of(rsuId)), // No forwarding trail for now
             severity
         );
         
@@ -181,14 +189,7 @@ public final class FogApp extends AbstractApplication<ServerOperatingSystem>
         ));
     }
 
-    private MessageRouting newRouting(CamMessage targetInfo) {
-
-        // Select the best RSU based on the target vehicle's position
-        String rsuId = getClosestRsu(targetInfo.getPosition());
-        logInfo(String.format(
-            "EVENT_ROUTING : TARGET: %s | RSU: %s",
-            targetInfo.getVehId(), rsuId
-        ));
+    private MessageRouting newRouting(String rsuId) {
     
         // Create a new routing for the event message
         return getOs().getCellModule()

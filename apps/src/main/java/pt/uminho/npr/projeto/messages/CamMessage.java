@@ -2,6 +2,8 @@ package pt.uminho.npr.projeto.messages;
 
 import java.io.*;
 import java.util.*;
+import java.util.Map.Entry;
+
 import javax.annotation.Nonnull;
 import org.eclipse.mosaic.lib.geo.GeoPoint;
 import org.eclipse.mosaic.lib.objects.v2x.*;
@@ -11,44 +13,28 @@ import pt.uminho.npr.projeto.records.NodeRecord;
 
 public final class CamMessage extends V2xMessage {
 
-    private final long     timeStamp;
-    private final String   vehId;
+    private final String vehId;
+    private final long timestamp;
+    private final int timeToLive;
     private final GeoPoint position;
-    private final double   heading;
-    private final double   speed;
-    private final double   acceleration;
-    private final boolean  brakeLightOn;
-    private final boolean  leftTurnSignalOn;
-    private final boolean  rightTurnSignalOn;
-    private final int      timeToLive;
+    //private final double   heading;
+    //private final double   speed;
     private final Map<String, NodeRecord> neighborsGraph;
 
     public CamMessage(MessageRouting routing,
                         int camId,
                         String vehId,
-                        long timeStamp,
-                        GeoPoint position,
-                        double heading,
-                        double speed,
-                        double acceleration,
-                        boolean brakeLightOn,
-                        boolean leftTurnSignalOn,
-                        boolean rightTurnSignalOn,
+                        long timestamp,
                         int timeToLive,
+                        GeoPoint position,
                         Map<String, NodeRecord> neighborsGraph) {
 
         super(routing, camId);
-        this.timeStamp           = timeStamp;
-        this.vehId               = vehId;
-        this.position            = position;
-        this.heading             = heading;
-        this.speed               = speed;
-        this.acceleration        = acceleration;
-        this.brakeLightOn        = brakeLightOn;
-        this.leftTurnSignalOn    = leftTurnSignalOn;
-        this.rightTurnSignalOn   = rightTurnSignalOn;
-        this.timeToLive          = timeToLive;
-        this.neighborsGraph      = neighborsGraph;
+        this.vehId = vehId;
+        this.timestamp = timestamp;
+        this.timeToLive = timeToLive;
+        this.position = position;
+        this.neighborsGraph = neighborsGraph;
     }
 
     @Nonnull @Override
@@ -56,18 +42,12 @@ public final class CamMessage extends V2xMessage {
         try (ByteArrayOutputStream buf = new ByteArrayOutputStream();
             DataOutputStream out = new DataOutputStream(buf)) {
             out.writeInt(this.getId());
-            out.writeLong(timeStamp);
             out.writeUTF(vehId);
-            SerializationUtils.encodeGeoPoint(out, position);
-            out.writeDouble(heading);
-            out.writeDouble(speed);
-            out.writeDouble(acceleration);
-            out.writeBoolean(brakeLightOn);
-            out.writeBoolean(leftTurnSignalOn);
-            out.writeBoolean(rightTurnSignalOn);
+            out.writeLong(timestamp);
             out.writeInt(timeToLive);
+            SerializationUtils.encodeGeoPoint(out, position);
             out.writeInt(neighborsGraph.size());
-            for (Map.Entry<String, NodeRecord> entry : neighborsGraph.entrySet()) {
+            for (Entry<String, NodeRecord> entry : neighborsGraph.entrySet()) {
                 String nodeId = entry.getKey();
                 NodeRecord nodeRecord = entry.getValue();
                 out.writeUTF(nodeId);
@@ -92,32 +72,43 @@ public final class CamMessage extends V2xMessage {
         }
     }
 
-    public long     getTimeStamp()        { return timeStamp; }
-    public String   getVehId()            { return vehId; }
-    public GeoPoint getPosition()         { return position; }
-    public double   getHeading()          { return heading; }
-    public double   getSpeed()            { return speed; }
-    public double   getAcceleration()     { return acceleration; }
-    public boolean  isBrakeLightOn()      { return brakeLightOn; }
-    public boolean  isLeftTurnSignalOn()  { return leftTurnSignalOn; }
-    public boolean  isRightTurnSignalOn() { return rightTurnSignalOn; }
-    public int      getTimeToLive()       { return timeToLive; }
+    public String   getVehId()      { return vehId; }
+    public long     getTimestamp()  { return timestamp; }
+    public int      getTimeToLive() { return timeToLive; }
+    public GeoPoint getPosition()   { return position; }
     public Map<String, NodeRecord> getNeighborsGraph() { return neighborsGraph; }
 
     @Override
     public String toString() {
         return "VEHICLE_TO_VEHICLE :" +
                " | ID: " + this.getId() +
-               " | SENDER_ID: " + vehId +
-               " | POSITION: " + position +
-               " | HEADING: " + heading +
-               " | SPEED: " + speed +
-               " | ACCELERATION: " + acceleration +
-               " | BRAKE_LIGHT_ON: " + brakeLightOn +
-               " | LEFT_TURN_SIGNAL_ON: " + leftTurnSignalOn +
-               " | RIGHT_TURN_SIGNAL_ON: " + rightTurnSignalOn +
+               " | VEHICLE_ID: " + vehId +
+               " | TIMESTAMP: " + timestamp +
                " | TIME_TO_LIVE: " + timeToLive +
-               " | NEIGHBOR_GRAPH_SIZE: " + neighborsGraph.size() +
-               " | TIMESTAMP: " + timeStamp;
+               " | POSITION: " + position +
+               " | NEIGHBOR_GRAPH_SIZE: " + neighborsGraph.size();
+    }
+
+    @Override
+    public boolean equals(Object obj) {
+        if (this == obj) return true;
+        if (!(obj instanceof CamMessage)) return false;
+        CamMessage other = (CamMessage) obj;
+        return this.getId() == other.getId() &&
+               this.vehId.equals(other.vehId) &&
+               this.timestamp == other.timestamp &&
+               this.timeToLive == other.timeToLive &&
+               this.position.equals(other.position) &&
+               this.neighborsGraph.equals(other.neighborsGraph);
+    }
+
+    @Override
+    public int hashCode() {
+        int result = getId() ^ (getId() >>> 32);
+        result = 31 * result + (int) (timestamp ^ (timestamp >>> 32));
+        result = 31 * result + (timeToLive ^ (timeToLive >>> 32));
+        result = 31 * result + position.hashCode();
+        result = 31 * result + neighborsGraph.hashCode();
+        return result;
     }
 }

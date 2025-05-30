@@ -68,8 +68,8 @@ public final class VehApp extends AbstractApplication<VehicleOperatingSystem>
 
     private String vehId;
     private boolean ready = false;
-    private double heading = 0.0;
-    private double speed = 0.0;
+    //private double heading = 0.0;
+    //private double speed = 0.0;
     private double preAccidentSpeed = 0.0;
     private boolean inAccident = false;
     private boolean pendingBrake = false;
@@ -111,23 +111,23 @@ public final class VehApp extends AbstractApplication<VehicleOperatingSystem>
     public void onVehicleUpdated(@Nullable org.eclipse.mosaic.lib.objects.vehicle.VehicleData prev,
                                 @Nonnull org.eclipse.mosaic.lib.objects.vehicle.VehicleData cur) {
         // Update vehicle state
-        heading = cur.getHeading().doubleValue();
-        speed = cur.getSpeed();
+        //heading = cur.getHeading().doubleValue();
+        //speed = cur.getSpeed();
         ready = true;
 
         // Handle pending events
         if (pendingBrake && !inAccident) {
             inAccident = true;
-            preAccidentSpeed = speed;
-            logInfo("accident event received: applying emergency brake for " +
-                    (ACCIDENT_DURATION_NS / TIME.MILLI_SECOND) + " ms");
+            preAccidentSpeed = cur.getSpeed();
+            logInfo("APPLYING EMERGENCY BRAKE FOR " +
+                    (ACCIDENT_DURATION_NS / TIME.MILLI_SECOND) + " MS");
 
             getOs().changeSpeedWithInterval(0.0, ACCIDENT_DURATION_NS);
             long resumeTime = getOs().getSimulationTime() + ACCIDENT_DURATION_NS;
             getOs().getEventManager().addEvent(resumeTime, new EventProcessor() {
                 @Override
                 public void processEvent(Event event) {
-                    logInfo("resuming speed to " + preAccidentSpeed);
+                    logInfo("RESUMING SPEED TO " + preAccidentSpeed);
                     getOs().changeSpeedWithInterval(preAccidentSpeed, RESUME_ACCEL_DURATION_NS);
                     inAccident = false;
                 }
@@ -136,7 +136,7 @@ public final class VehApp extends AbstractApplication<VehicleOperatingSystem>
         }
 
         if (pendingLaneChange) {
-            logInfo("lane closure event received: initiating lane change");
+            logInfo("LANE CLOSURE EVENT RECEIVED: INITIATING LANE CHANGE");
             getOs().changeLane(VehicleLaneChangeMode.TO_RIGHT, EVENT_DURATION_NS);
             pendingLaneChange = false;
         }
@@ -175,14 +175,8 @@ public final class VehApp extends AbstractApplication<VehicleOperatingSystem>
             camIdSeq.getAndIncrement(),
             vehId,
             now,
-            getOs().getPosition(),
-            heading,
-            speed,
-            0.0,
-            false,
-            false,
-            false,
             INITIAL_TTL,
+            getOs().getPosition(),
             neighborsGraph
         );
         getOs().getAdHocModule().sendV2xMessage(v2v);
@@ -194,12 +188,6 @@ public final class VehApp extends AbstractApplication<VehicleOperatingSystem>
     public void onMessageReceived(ReceivedV2xMessage in) {
         V2xMessage msg = in.getMessage();
         if (msg instanceof CamMessage cam) {
-            /*
-            logInfo("RECEIVED VEHICLE_TO_VEHICLE : UNIQUE_ID = " + v2v.getMessageId() +
-                    " | FROM = "      + v2v.getSenderId() +
-                    " | TTL = "       + v2v.getTimeToLive() +
-                    " | GRAPH_SIZE = "+ v2v.getNeighborGraph().size());
-            */
             handleCamReceived(cam);
 
         } else if (msg instanceof EventMessage event && event.hasNextHop() && event.getNextHop().equals(vehId) && processedEvents.add(event.getId())) {
@@ -218,21 +206,21 @@ public final class VehApp extends AbstractApplication<VehicleOperatingSystem>
         }
     }
 
-    private void handleCamReceived(CamMessage v2v) {
-        if (!processedCams.add(v2v.getId())) return;
+    private void handleCamReceived(CamMessage cam) {
+        if (!processedCams.add(cam.getId())) return;
 
-        String sender = v2v.getVehId();
-        GeoPoint senderPos = v2v.getPosition();
+        String sender = cam.getVehId();
+        GeoPoint senderPos = cam.getPosition();
 
         double distSelf   = getOs().getPosition().distanceTo(senderPos);
         double distToRsu  = computeRsuDistance();
         boolean reachableToRsu = distToRsu <= RSU_RANGE_M;
 
         // Process neighbor information
-        List<String> reachableNeighbors = new ArrayList<>(v2v.getNeighborsGraph().keySet());
+        List<String> reachableNeighbors = new ArrayList<>(cam.getNeighborsGraph().keySet());
         List<String> directNeighbors = reachableNeighbors.stream()
             .filter(id -> {
-                NodeRecord nr = v2v.getNeighborsGraph().get(id);
+                NodeRecord nr = cam.getNeighborsGraph().get(id);
                 return nr != null && nr.getDistanceFromVehicle() <= TX_RANGE_M;
             })
             .toList();
@@ -244,11 +232,11 @@ public final class VehApp extends AbstractApplication<VehicleOperatingSystem>
             reachableToRsu,
             reachableNeighbors,
             directNeighbors,
-            v2v.getTimeStamp()
+            cam.getTimestamp()
         );
         neighborsGraph.put(sender, recSelf);
 
-        v2v.getNeighborsGraph().forEach((id, rec) -> {
+        cam.getNeighborsGraph().forEach((id, rec) -> {
             NodeRecord existing = neighborsGraph.get(id);
             if (existing == null || rec.getCreationTimestamp() > existing.getCreationTimestamp()) {
                 neighborsGraph.put(id, rec);
@@ -256,21 +244,15 @@ public final class VehApp extends AbstractApplication<VehicleOperatingSystem>
         });
 
         // Forward message if TTL allows
-        if (v2v.getTimeToLive() > 1) {
+        if (cam.getTimeToLive() > 1) {
             CamMessage fwd = new CamMessage(
                 broadcastRouting,
-                v2v.getId(),
-                v2v.getVehId(),
-                v2v.getTimeStamp(),
+                cam.getId(),
+                cam.getVehId(),
+                cam.getTimestamp(),
+                cam.getTimeToLive() - 1,
                 senderPos,
-                v2v.getHeading(),
-                v2v.getSpeed(),
-                v2v.getAcceleration(),
-                v2v.isBrakeLightOn(),
-                v2v.isLeftTurnSignalOn(),
-                v2v.isRightTurnSignalOn(),
-                v2v.getTimeToLive() - 1,
-                v2v.getNeighborsGraph()
+                cam.getNeighborsGraph()
             );
             getOs().getAdHocModule().sendV2xMessage(fwd);
         }
@@ -439,9 +421,11 @@ public final class VehApp extends AbstractApplication<VehicleOperatingSystem>
             .filter(n -> neighborsGraph.get(n).getReachableNeighbors().contains(dst))
             .toList();
         if (!twoHop.isEmpty()) {
-            return twoHop.stream()
-                .min(Comparator.comparingDouble(n -> neighborsGraph.get(n).getDistanceFromVehicle()))
-                .get();
+            Optional<String> minTwoHop = twoHop.stream()
+                .min(Comparator.comparingDouble(n -> neighborsGraph.get(n).getDistanceFromVehicle()));
+            if (minTwoHop.isPresent()) {
+                return minTwoHop.get();
+            }
         }
 
         // Select neighbor with minimum hop count

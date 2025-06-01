@@ -15,8 +15,6 @@ public final class CamMessage extends V2xMessage {
     private final int hopsToLive;
     private final GeoPoint position;
     private final Set<String> neighbors;
-    //private final double heading;
-    //private final double speed;
 
     public CamMessage(MessageRouting routing,
                         int camId,

@@ -27,7 +27,7 @@ public final class VehApp extends AbstractApplication<VehicleOperatingSystem>
 
     // Configuration constants
     private static final long TICK_INTERVAL = 100 * TIME.MILLI_SECOND;
-    private static final long CAM_TTL = 3 * TIME.SECOND;
+    private static final long CAM_TTL = 2 * TIME.SECOND;
     private static final int  CAM_HOP_TL = 5;
     private static final long CHANGE_ACCEL_DURATION = 1 * TIME.SECOND;
 
@@ -38,8 +38,8 @@ public final class VehApp extends AbstractApplication<VehicleOperatingSystem>
     private static final double SPEED_THRESHOLD = 0.5; // 0.5 m/s
     
     private MessageRouting broadcastRouting;
-    private static final int TX_POWER_DBM = 23;
-    private static final double TX_RANGE_M = 120.0;
+    private static final int TX_POWER_DBM = 50;
+    private static final double TX_RANGE_M = 140.0;
     
     private final Map<String, CamMessage> seenCams = new HashMap<>();
     private final Set<String> neighbors = new HashSet<>();
@@ -50,7 +50,7 @@ public final class VehApp extends AbstractApplication<VehicleOperatingSystem>
     private long resumeTimestamp = 0;
     private boolean pendingBrake = false;
 
-    private String  vehId;
+    private String vehId;
     private long lastCamTimestamp = 0; // Timestamp of the last CAM sent
     private GeoPoint lastCamPosition = null; // Last position when CAM was sent
     private double lastCamHeading = 0.0; // Last heading in degrees
@@ -419,14 +419,6 @@ public final class VehApp extends AbstractApplication<VehicleOperatingSystem>
             return target;
         }
 
-        // Check if the destination is reachable through a neighbor (2 hops)
-        for (String neighbor : neighbors) {
-            CamMessage neighborCam = seenCams.get(neighbor);
-            if (neighborCam != null && neighborCam.getNeighbors().contains(target)) {
-                return neighbor;
-            }
-        }
-
         // If no direct or two-hop neighbor is found, select the closest neighbor to the destination
         return getClosestNeighbor(target);
     }
@@ -448,6 +440,10 @@ public final class VehApp extends AbstractApplication<VehicleOperatingSystem>
         for (String neighbor : neighbors) {
             CamMessage neighborCam = seenCams.get(neighbor);
             if (neighborCam != null) {
+                if (neighborCam.getNeighbors().contains(target)) {
+                    // If the neighbor is directly connected to the target, return it immediately
+                    return neighbor;
+                }
                 GeoPoint neighborPosition = neighborCam.getPosition();
                 double distance = neighborPosition.distanceTo(targetPosition);
                 if (distance <= minDistance) {

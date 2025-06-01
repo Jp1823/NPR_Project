@@ -26,10 +26,10 @@ public final class RsuApp extends AbstractApplication<RoadSideUnitOperatingSyste
         implements CommunicationApplication {
 
     private static final long TICK_INTERVAL = 500 * TIME.MILLI_SECOND;
-    private static final long CAM_TTL       = 3 * TIME.SECOND;
+    private static final long CAM_TTL       = 2 * TIME.SECOND;
 
-    private static final int TX_POWER_DBM  = 23;
-    private static final double TX_RANGE_M = 120.0;
+    private static final int TX_POWER_DBM  = 50;
+    private static final double TX_RANGE_M = 140.0;
 
     private MessageRouting cellRoutingToFog;
     private MessageRouting broadcastRouting;
@@ -248,14 +248,6 @@ public final class RsuApp extends AbstractApplication<RoadSideUnitOperatingSyste
         if (neighbors.contains(target)) {
             return target;
         }
-
-        // Check if the destination is reachable through a neighbor (2 hops)
-        for (String neighbor : neighbors) {
-            CamMessage neighborCam = seenCams.get(neighbor);
-            if (neighborCam != null && neighborCam.getNeighbors().contains(target)) {
-                return neighbor;
-            }
-        }
         
         // If no direct or two-hop neighbor is found, select the closest neighbor to the destination
         return getClosestNeighbor(target);
@@ -278,6 +270,10 @@ public final class RsuApp extends AbstractApplication<RoadSideUnitOperatingSyste
         for (String neighbor : neighbors) {
             CamMessage neighborCam = seenCams.get(neighbor);
             if (neighborCam != null) {
+                if (neighborCam.getNeighbors().contains(target)) {
+                    // If the neighbor is directly connected to the target, return it immediately
+                    return neighbor;
+                }
                 GeoPoint neighborPosition = neighborCam.getPosition();
                 double distance = neighborPosition.distanceTo(targetPosition);
                 if (distance <= minDistance) {

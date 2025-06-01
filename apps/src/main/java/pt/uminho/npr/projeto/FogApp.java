@@ -26,7 +26,7 @@ public final class FogApp extends AbstractApplication<ServerOperatingSystem>
         implements CommunicationApplication {
 
     private static final long   TICK_INTERVAL = 500 * TIME.MILLI_SECOND;
-    private static final long   CAM_TTL       = 3 * TIME.SECOND;
+    private static final long   CAM_TTL       = 2 * TIME.SECOND;
     private static final long   EVENT_TTL     = 8 * TIME.SECOND;
     private static final double EVENT_PROB    = 0.02;
 

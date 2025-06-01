@@ -1,5 +1,5 @@
 {
-    "maximumTtl": 10,
+    "maximumTtl": 1,
     "singlehopRadius": 120.0,
     "adhocTransmissionModel": {
         "type": "SimpleAdhocTransmissionModel",

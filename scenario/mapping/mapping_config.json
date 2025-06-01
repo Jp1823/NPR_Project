@@ -29,10 +29,10 @@
   ],
   "vehicles": [
     {
-      "startingTime": "2 s",
-      "targetFlow": 3000,
+      "startingTime": "1 s",
+      "targetFlow": 1000,
       "spawningMode": "CONSTANT",
-      "maxNumberVehicles": 10,
+      "maxNumberVehicles": 20,
       "laneSelectionMode": "BEST",
       "departSpeed": "0.0 m/s",
       "departSpeedMode": "MAXIMUM",
@@ -50,8 +50,8 @@
       ]
     },
     {
-      "startingTime": "20 s",
-      "targetFlow": 3000,
+      "startingTime": "1 s",
+      "targetFlow": 1500,
       "spawningMode": "CONSTANT",
       "maxNumberVehicles": 10,
       "laneSelectionMode": "BEST",
@@ -71,10 +71,10 @@
       ]
     },
     {
-      "startingTime": "30 s",
-      "targetFlow": 2000,
+      "startingTime": "1 s",
+      "targetFlow": 1500,
       "spawningMode": "CONSTANT",
-      "maxNumberVehicles": 20,
+      "maxNumberVehicles": 10,
       "laneSelectionMode": "BEST",
       "departSpeed": "0.0 m/s",
       "departSpeedMode": "MAXIMUM",
@@ -92,8 +92,8 @@
       ]
     },
     {
-      "startingTime": "40 s",
-      "targetFlow": 3000,
+      "startingTime": "15 s",
+      "targetFlow": 1500,
       "spawningMode": "CONSTANT",
       "maxNumberVehicles": 10,
       "laneSelectionMode": "BEST",
@@ -113,10 +113,10 @@
       ]
     },
     {
-      "startingTime": "50 s",
-      "targetFlow": 2000,
+      "startingTime": "20 s",
+      "targetFlow": 1500,
       "spawningMode": "CONSTANT",
-      "maxNumberVehicles": 20,
+      "maxNumberVehicles": 10,
       "laneSelectionMode": "BEST",
       "departSpeed": "0.0 m/s",
       "departSpeedMode": "MAXIMUM",
@@ -134,8 +134,8 @@
       ]
     },
     {
-      "startingTime": "60 s",
-      "targetFlow": 3000,
+      "startingTime": "20 s",
+      "targetFlow": 1500,
       "spawningMode": "CONSTANT",
       "maxNumberVehicles": 10,
       "laneSelectionMode": "BEST",
@@ -150,6 +150,27 @@
       "departConnectionIndex": 0,
       "pos": 0,
       "route": "r_3",
+      "applications": [
+        "pt.uminho.npr.projeto.VehApp"
+      ]
+    },
+    {
+      "startingTime": "20 s",
+      "targetFlow": 1500,
+      "spawningMode": "CONSTANT",
+      "maxNumberVehicles": 10,
+      "laneSelectionMode": "BEST",
+      "departSpeed": "0.0 m/s",
+      "departSpeedMode": "MAXIMUM",
+      "types": [
+        {
+          "name": "Car",
+          "weight": 1.0
+        }
+      ],
+      "departConnectionIndex": 0,
+      "pos": 0,
+      "route": "r_2",
       "applications": [
         "pt.uminho.npr.projeto.VehApp"
       ]

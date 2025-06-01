@@ -249,7 +249,7 @@ public final class RsuApp extends AbstractApplication<RoadSideUnitOperatingSyste
             return target;
         }
         
-        // If no direct or two-hop neighbor is found, select the closest neighbor to the destination
+        // If no direct neighbor is found, select the closest neighbor to the destination
         return getClosestNeighbor(target);
     }
 

@@ -65,9 +65,9 @@ public abstract class EventMessage extends V2xMessage {
     @Override
     public String toString() {
         return "EVENT_MESSAGE :" +
-               " | EVENT_ID: "       + getId() +
-               " | TARGET: "           + target +
-               " | TIMESTAMP: "        + timestamp +
+               " | EVENT_ID: " + getId() +
+               " | TARGET: " + target +
+               " | TIMESTAMP: " + timestamp +
                " | EXPIRY_TIMESTAMP: " + expiryTimestamp +
                " | FORWARDING_TRAIL: " + forwardingTrail;
     }

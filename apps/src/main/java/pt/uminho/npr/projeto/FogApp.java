@@ -20,16 +20,15 @@ import pt.uminho.npr.projeto.messages.CamMessage;
 
 import java.util.*;
 import java.util.Map.Entry;
-import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.atomic.AtomicInteger;
 
 public final class FogApp extends AbstractApplication<ServerOperatingSystem>
         implements CommunicationApplication {
 
-    private static final long   TICK_INTERVAL     = 1  * TIME.SECOND;
-    private static final long   VEH_STATE_TTL     = 5  * TIME.SECOND;
-    private static final long   EVENT_TTL         = 10 * TIME.SECOND;
-    private static final double EVENT_PROBABILITY = 0.05;
+    private static final long   TICK_INTERVAL = 500 * TIME.MILLI_SECOND;
+    private static final long   CAM_TTL       = 3 * TIME.SECOND;
+    private static final long   EVENT_TTL     = 8 * TIME.SECOND;
+    private static final double EVENT_PROB    = 0.02;
 
     private static final Map<String, GeoPoint> STATIC_RSUS = Map.ofEntries(
         Map.entry("rsu_0",  GeoPoint.latLon(52.451033, 13.295327, 0)),
@@ -48,7 +47,7 @@ public final class FogApp extends AbstractApplication<ServerOperatingSystem>
         Map.entry("rsu_13", GeoPoint.latLon(52.449206, 13.292616, 0))
     );
 
-    private final Map<String, CamMessage> vehicleStates = new HashMap<>();
+    private final Map<String, CamMessage> seenCams = new HashMap<>();
     private final List<Integer> openEvents = new ArrayList<>();
     private final AtomicInteger eventSeq = new AtomicInteger();
     private final Random random = new Random();
@@ -95,9 +94,11 @@ public final class FogApp extends AbstractApplication<ServerOperatingSystem>
     public void onMessageReceived(ReceivedV2xMessage incoming) {
         V2xMessage msg = incoming.getMessage();
         
-        if (msg instanceof CamMessage cam) {
+        if (msg instanceof CamMessage cam && 
+            (!seenCams.containsKey(cam.getVehId()) || cam.getId() > seenCams.get(cam.getVehId()).getId())
+        ) {
             // Store the last cam message for the vehicle
-            vehicleStates.put(cam.getVehId(), cam);
+            seenCams.put(cam.getVehId(), cam);
 
         } else if (msg instanceof EventACK ack) {
             logInfo(String.format(
@@ -128,40 +129,34 @@ public final class FogApp extends AbstractApplication<ServerOperatingSystem>
 
     @Override
     public void processEvent(Event event) {
-        cleanVars();
+        purgeCams();
         maybeGenerateEvent();
         scheduleEvent();
     }
-    
-    private void cleanVars() {
-        purgeVehicleStates();
-    }
 
-    private void purgeVehicleStates() {
+    private void purgeCams() {
         long now = getOs().getSimulationTime();
-        vehicleStates.entrySet().removeIf(
-            e -> now - e.getValue().getTimestamp() > VEH_STATE_TTL
+        seenCams.entrySet().removeIf(
+            e -> now - e.getValue().getTimestamp() > CAM_TTL
         );
     }
 
     private void maybeGenerateEvent() {
         // Do nothing if there are no vehicles or the random chance fails
-        if (vehicleStates.isEmpty() || random.nextDouble() >= EVENT_PROBABILITY) {
+        if (seenCams.isEmpty() || random.nextDouble() >= EVENT_PROB) {
             return;
         }
 
         // Select a random vehicle to be the target of the event
-        CamMessage targetInfo = vehicleStates
-            .get(new ArrayList<>(vehicleStates.keySet())
-            .get(ThreadLocalRandom.current().nextInt(vehicleStates.size())));
-        String target = targetInfo.getVehId();
+        String target = new ArrayList<>(seenCams.keySet())
+            .get(random.nextInt(seenCams.size()));
+        CamMessage targetInfo = seenCams.get(target);
 
         long now = getOs().getSimulationTime();
         int id = eventSeq.getAndIncrement();
         
         // Select a random severity level
-        List<String> levels = List.of("LOW", "MEDIUM", "HIGH");
-        String severity = levels.get(random.nextInt(levels.size()));
+        int severity = random.nextInt(3); // 0: minor, 1: moderate, 2: severe
 
         // Select the best RSU based on the target vehicle's position
         String rsuId = getClosestRsu(targetInfo.getPosition());
@@ -177,7 +172,7 @@ public final class FogApp extends AbstractApplication<ServerOperatingSystem>
             now, 
             now + EVENT_TTL, 
             target, 
-            new ArrayList<>(List.of(rsuId)), // No forwarding trail for now
+            new ArrayList<>(List.of(rsuId)),
             severity
         );
         

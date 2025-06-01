@@ -6,7 +6,7 @@ import org.eclipse.mosaic.lib.objects.v2x.MessageRouting;
 
 public class AccidentEvent extends EventMessage {
 
-    private final String severity;
+    private final int severity;
 
     public AccidentEvent(MessageRouting routing,
                          int eventId,
@@ -14,12 +14,12 @@ public class AccidentEvent extends EventMessage {
                          long expiryTimestamp,
                          String target,
                          List<String> forwardingTrail,
-                         String severity) {
+                         int severity) {
         super(routing, eventId, timestamp, expiryTimestamp, target, forwardingTrail);
         this.severity = severity;
     }
 
-    public String getSeverity() {
+    public int getSeverity() {
         return severity;
     }
 
@@ -35,14 +35,14 @@ public class AccidentEvent extends EventMessage {
         if (this == o) return true;
         if (!(o instanceof AccidentEvent)) return false;
         AccidentEvent that = (AccidentEvent) o;
-        return severity.equals(that.severity) &&
+        return severity == that.severity &&
                super.equals(that);
     }
 
     @Override
     public int hashCode() {
         int result = super.hashCode();
-        result = 31 * result + severity.hashCode();
+        result = 31 * result + Integer.hashCode(severity);
         return result;
     }
 }

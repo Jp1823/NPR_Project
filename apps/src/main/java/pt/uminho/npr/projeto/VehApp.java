@@ -7,17 +7,14 @@ import org.eclipse.mosaic.fed.application.app.api.os.VehicleOperatingSystem;
 import org.eclipse.mosaic.fed.application.ambassador.simulation.communication.AdHocModuleConfiguration;
 import org.eclipse.mosaic.fed.application.ambassador.simulation.communication.ReceivedV2xMessage;
 import org.eclipse.mosaic.interactions.communication.V2xMessageTransmission;
-import org.eclipse.mosaic.interactions.vehicle.VehicleLaneChange.VehicleLaneChangeMode;
 import org.eclipse.mosaic.lib.enums.AdHocChannel;
 import org.eclipse.mosaic.lib.geo.GeoPoint;
 import org.eclipse.mosaic.lib.objects.v2x.MessageRouting;
 import org.eclipse.mosaic.lib.objects.v2x.V2xMessage;
 import org.eclipse.mosaic.lib.util.scheduling.Event;
-import org.eclipse.mosaic.lib.util.scheduling.EventProcessor;
 import org.eclipse.mosaic.rti.TIME;
 
 import pt.uminho.npr.projeto.messages.*;
-import pt.uminho.npr.projeto.records.NodeRecord;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -29,51 +26,35 @@ public final class VehApp extends AbstractApplication<VehicleOperatingSystem>
         implements VehicleApplication, CommunicationApplication {
 
     // Configuration constants
-    private static final long BEACON_PERIOD_MS = 100 * TIME.MILLI_SECOND;
-    private static final long CLEAN_THRESHOLD_MS = 1000 * TIME.MILLI_SECOND;
-    private static final int TX_POWER_DBM = 23;
-    private static final double TX_RANGE_M = 150.0;
-    private static final double RSU_RANGE_M = 150.0;
-    private static final int INITIAL_TTL = 10;
-    private static final long EVENT_DURATION_NS = 30_000 * TIME.MILLI_SECOND;
-    private static final long ACCIDENT_DURATION_NS = 30_000 * TIME.MILLI_SECOND;
-    private static final long RESUME_ACCEL_DURATION_NS = 1_000 * TIME.MILLI_SECOND;
+    private static final long TICK_INTERVAL = 100 * TIME.MILLI_SECOND;
+    private static final long CAM_TTL = 3 * TIME.SECOND;
+    private static final int  CAM_HOP_TL = 5;
+    private static final long CHANGE_ACCEL_DURATION = 1 * TIME.SECOND;
 
-    // Static RSU positions
-    private static final Map<String, GeoPoint> STATIC_RSUS = Map.ofEntries(
-        Map.entry("rsu_0",  GeoPoint.latLon(52.451033, 13.295327, 0)),
-        Map.entry("rsu_1",  GeoPoint.latLon(52.451406, 13.298062, 0)),
-        Map.entry("rsu_2",  GeoPoint.latLon(52.452119, 13.301154, 0)),
-        Map.entry("rsu_3",  GeoPoint.latLon(52.452153, 13.304256, 0)),
-        Map.entry("rsu_4",  GeoPoint.latLon(52.450304, 13.301368, 0)),
-        Map.entry("rsu_5",  GeoPoint.latLon(52.450268, 13.304328, 0)),
-        Map.entry("rsu_6",  GeoPoint.latLon(52.448599, 13.305743, 0)),
-        Map.entry("rsu_7",  GeoPoint.latLon(52.448538, 13.302883, 0)),
-        Map.entry("rsu_8",  GeoPoint.latLon(52.447641, 13.301310, 0)),
-        Map.entry("rsu_9",  GeoPoint.latLon(52.449290, 13.298481, 0)),
-        Map.entry("rsu_10", GeoPoint.latLon(52.446686, 13.298421, 0)),
-        Map.entry("rsu_11", GeoPoint.latLon(52.446557, 13.294261, 0)),
-        Map.entry("rsu_12", GeoPoint.latLon(52.448404, 13.295637, 0)),
-        Map.entry("rsu_13", GeoPoint.latLon(52.449206, 13.292616, 0))
-    );
-
-    private MessageRouting broadcastRouting;
-
-    // Vehicle state
-    private final Map<String, NodeRecord> neighborsGraph = new HashMap<>();
+    private static final long   CAM_MIN_TIME = 100  * TIME.MILLI_SECOND;
+    private static final long   CAM_MAX_TIME = 1000 * TIME.MILLI_SECOND;
+    private static final double HEADING_THRESHOLD = 4.0; // 4 degrees
+    private static final double DISTANCE_THRESHOLD = 4.0; // 4 meters
+    private static final double SPEED_THRESHOLD = 0.5; // 0.5 m/s
     
-    private final Set<Integer> processedCams   = new HashSet<>();
-    private final Set<Integer> processedEvents = new HashSet<>();
+    private MessageRouting broadcastRouting;
+    private static final int TX_POWER_DBM = 23;
+    private static final double TX_RANGE_M = 120.0;
+    
+    private final Map<String, CamMessage> seenCams = new HashMap<>();
+    private final Set<String> neighbors = new HashSet<>();
     private AtomicInteger camIdSeq = new AtomicInteger();
-
-    private String vehId;
-    private boolean ready = false;
-    //private double heading = 0.0;
-    //private double speed = 0.0;
-    private double preAccidentSpeed = 0.0;
-    private boolean inAccident = false;
+    
+    private final Set<Integer> processedEvents = new HashSet<>();
+    private long accidentDuration = 30 * TIME.SECOND; // Default accident duration
+    private long resumeTimestamp = 0;
     private boolean pendingBrake = false;
-    private boolean pendingLaneChange = false;
+
+    private String  vehId;
+    private long lastCamTimestamp = 0; // Timestamp of the last CAM sent
+    private GeoPoint lastCamPosition = null; // Last position when CAM was sent
+    private double lastCamHeading = 0.0; // Last heading in degrees
+    private double lastCamSpeed = 0.0; // Last speed in m/s
 
     @Override
     public void onStartup() {
@@ -109,36 +90,20 @@ public final class VehApp extends AbstractApplication<VehicleOperatingSystem>
 
     @Override
     public void onVehicleUpdated(@Nullable org.eclipse.mosaic.lib.objects.vehicle.VehicleData prev,
-                                @Nonnull org.eclipse.mosaic.lib.objects.vehicle.VehicleData cur) {
-        // Update vehicle state
-        //heading = cur.getHeading().doubleValue();
-        //speed = cur.getSpeed();
-        ready = true;
+                                 @Nonnull org.eclipse.mosaic.lib.objects.vehicle.VehicleData cur) {
 
         // Handle pending events
-        if (pendingBrake && !inAccident) {
-            inAccident = true;
-            preAccidentSpeed = cur.getSpeed();
-            logInfo("APPLYING EMERGENCY BRAKE FOR " +
-                    (ACCIDENT_DURATION_NS / TIME.MILLI_SECOND) + " MS");
+        if (pendingBrake && resumeTimestamp == 0) {
 
-            getOs().changeSpeedWithInterval(0.0, ACCIDENT_DURATION_NS);
-            long resumeTime = getOs().getSimulationTime() + ACCIDENT_DURATION_NS;
-            getOs().getEventManager().addEvent(resumeTime, new EventProcessor() {
-                @Override
-                public void processEvent(Event event) {
-                    logInfo("RESUMING SPEED TO " + preAccidentSpeed);
-                    getOs().changeSpeedWithInterval(preAccidentSpeed, RESUME_ACCEL_DURATION_NS);
-                    inAccident = false;
-                }
-            });
+            // Apply emergency brake
+            getOs().changeSpeedWithInterval(0.0, CHANGE_ACCEL_DURATION);
+            logInfo("APPLYING EMERGENCY BRAKE FOR " + (accidentDuration / TIME.SECOND) + " SECONDS");
+            
+            // Schedule resuming speed after the accident duration
+            resumeTimestamp = getOs().getSimulationTime() + accidentDuration;
+            getOs().getEventManager().addEvent(resumeTimestamp, this);
+
             pendingBrake = false;
-        }
-
-        if (pendingLaneChange) {
-            logInfo("LANE CLOSURE EVENT RECEIVED: INITIATING LANE CHANGE");
-            getOs().changeLane(VehicleLaneChangeMode.TO_RIGHT, EVENT_DURATION_NS);
-            pendingLaneChange = false;
         }
     }
 
@@ -146,56 +111,111 @@ public final class VehApp extends AbstractApplication<VehicleOperatingSystem>
     public void processEvent(Event event) {
         long now = getOs().getSimulationTime();
 
-        if (ready) {
-            sendCam(now);
+        // Check if it is time to end the accident and resume speed
+        if (resumeTimestamp != 0 && now > resumeTimestamp) {
+            getOs().resetSpeed();
+            logInfo("RESUMING ORIGINAL SPEED");
+            resumeTimestamp = 0;
         }
+            
         purgeStale(now);
+        checkLastCam(now);
         scheduleEvent();
+    }
+    
+    private void purgeStale(long now) {
+        // Remove old cam entries
+        seenCams.entrySet().removeIf(
+            e -> now - e.getValue().getTimestamp() > CAM_TTL
+        );
     }
 
     private void scheduleEvent() {
         // Schedule the next event
         getOs().getEventManager().addEvent(
-            getOs().getSimulationTime() + BEACON_PERIOD_MS,
+            getOs().getSimulationTime() + TICK_INTERVAL,
             this
         );
     }
+        
+    private void checkLastCam(long now) {
 
-    private void purgeStale(long now) {
-        // Remove stale neighbor entries
-        neighborsGraph.entrySet().removeIf(
-            e -> now - e.getValue().getCreationTimestamp() > CLEAN_THRESHOLD_MS
-        );
+        // Calculate elapsed time since last CAM (T)
+        long elapsedTime = now - lastCamTimestamp;
+        
+        // Get current vehicle state
+        GeoPoint currentPosition = getOs().getPosition();
+        double currentHeading = getOs().getVehicleData().getHeading();
+        double currentSpeed = getOs().getVehicleData().getSpeed();
+        
+        if (elapsedTime >= CAM_MAX_TIME) {
+            // T >= TMax: Send CAM regardless of changes
+            sendCam(now, currentPosition, currentHeading, currentSpeed);
+            return;    
+        }
+
+        // Initialize last CAM position if not set
+        if (lastCamPosition == null) {
+            lastCamPosition = getOs().getPosition();
+        }
+
+        // Calculate major changes
+        boolean hasPositionChanged = lastCamPosition.distanceTo(currentPosition) > DISTANCE_THRESHOLD;
+        boolean hasHeadingChanged = Math.abs(currentHeading - lastCamHeading) > HEADING_THRESHOLD;
+        boolean hasSpeedChanged = Math.abs(currentSpeed - lastCamSpeed) > SPEED_THRESHOLD;
+
+        if (elapsedTime >= CAM_MIN_TIME &&
+            (hasHeadingChanged || hasPositionChanged || hasSpeedChanged)
+        ) {
+            // T >= TMin AND any major change: Send CAM       
+            sendCam(now, currentPosition, currentHeading, currentSpeed);
+        }
     }
 
-    private void sendCam(long now) {
-
+    private void sendCam(long now, GeoPoint position, double heading, double speed) {
+        // Create a new CAM message and send it
         CamMessage v2v = new CamMessage(
             broadcastRouting,
             camIdSeq.getAndIncrement(),
             vehId,
             now,
-            INITIAL_TTL,
-            getOs().getPosition(),
-            neighborsGraph
+            CAM_HOP_TL,
+            position,
+            neighbors
         );
         getOs().getAdHocModule().sendV2xMessage(v2v);
-    }
 
-    // Message handling
+        // Update last CAM state
+        lastCamTimestamp = now;
+        lastCamPosition = position;
+        lastCamHeading = heading;
+        lastCamSpeed = speed;
+    }
 
     @Override
     public void onMessageReceived(ReceivedV2xMessage in) {
         V2xMessage msg = in.getMessage();
-        if (msg instanceof CamMessage cam) {
+
+        // If the sender is a vehicle, add it to the neighbors   
+        String senderId = msg.getRouting().getSource().getSourceName();
+        if (senderId.contains("veh")) {
+            neighbors.add(senderId);
+        }
+
+        if (msg instanceof CamMessage cam && 
+            (!seenCams.containsKey(cam.getVehId()) || cam.getId() > seenCams.get(cam.getVehId()).getId())
+        ) {
+            // Process the CAM message if it is the first seen from the vehicle or if it is more recent
             handleCamReceived(cam);
 
-        } else if (msg instanceof EventMessage event && event.hasNextHop() && event.getNextHop().equals(vehId) && processedEvents.add(event.getId())) {
+        } else if (msg instanceof EventMessage event && event.hasNextHop() && 
+                   event.getNextHop().equals(vehId)  && processedEvents.add(event.getId())
+        ) {
             // Process event message if it is directed to this vehicle and not already processed
             logInfo("EVENT MESSAGE RECEIVED: EVENT_ID =" + event.getId() +
                     " | VEHICLE_TARGET = " + event.getTarget() +
                     " | EVENT_TYPE = " + event.getSimpleClassName());
-            handleEventMessage(event);
+            handleEventReceived(event);
 
         } else if (msg instanceof EventACK ack && ack.hasNextHop() && ack.getNextHop().equals(vehId)) {
             // Process the ack if it is directed to this vehicle
@@ -207,58 +227,71 @@ public final class VehApp extends AbstractApplication<VehicleOperatingSystem>
     }
 
     private void handleCamReceived(CamMessage cam) {
-        if (!processedCams.add(cam.getId())) return;
 
-        String sender = cam.getVehId();
-        GeoPoint senderPos = cam.getPosition();
+        String camVehId = cam.getVehId();
+        seenCams.put(camVehId, cam);
 
-        double distSelf   = getOs().getPosition().distanceTo(senderPos);
-        double distToRsu  = computeRsuDistance();
-        boolean reachableToRsu = distToRsu <= RSU_RANGE_M;
-
-        // Process neighbor information
-        List<String> reachableNeighbors = new ArrayList<>(cam.getNeighborsGraph().keySet());
-        List<String> directNeighbors = reachableNeighbors.stream()
-            .filter(id -> {
-                NodeRecord nr = cam.getNeighborsGraph().get(id);
-                return nr != null && nr.getDistanceFromVehicle() <= TX_RANGE_M;
-            })
-            .toList();
-
-        // Update neighbor graph
-        NodeRecord recSelf = new NodeRecord(
-            distSelf,
-            distToRsu,
-            reachableToRsu,
-            reachableNeighbors,
-            directNeighbors,
-            cam.getTimestamp()
-        );
-        neighborsGraph.put(sender, recSelf);
-
-        cam.getNeighborsGraph().forEach((id, rec) -> {
-            NodeRecord existing = neighborsGraph.get(id);
-            if (existing == null || rec.getCreationTimestamp() > existing.getCreationTimestamp()) {
-                neighborsGraph.put(id, rec);
-            }
-        });
+        double distance = getOs().getPosition().distanceTo(cam.getPosition());
+        boolean reachable = distance < TX_RANGE_M;
+        if (reachable) {
+            neighbors.add(camVehId);
+        } else {
+            neighbors.remove(camVehId);
+        }
 
         // Forward message if TTL allows
-        if (cam.getTimeToLive() > 1) {
-            CamMessage fwd = new CamMessage(
-                broadcastRouting,
-                cam.getId(),
-                cam.getVehId(),
-                cam.getTimestamp(),
-                cam.getTimeToLive() - 1,
-                senderPos,
-                cam.getNeighborsGraph()
-            );
-            getOs().getAdHocModule().sendV2xMessage(fwd);
+        if (cam.getHopsToLive() > 0) {
+            forwardCamMessage(cam);
         }
+    }    
+
+    private void forwardCamMessage(CamMessage cam) {
+        CamMessage fwd = new CamMessage(
+            broadcastRouting,
+            cam.getId(),
+            cam.getVehId(),
+            cam.getTimestamp(),
+            cam.getHopsToLive() - 1,
+            cam.getPosition(),
+            cam.getNeighbors()
+        );
+        getOs().getAdHocModule().sendV2xMessage(fwd);
     }
 
-    private void handleEventMessage(EventMessage event) {
+    private void handleAckReceived(EventACK ack) {
+
+        // If the ACK is expired, do not process it
+        if (ack.getExpiryTimestamp() < getOs().getSimulationTime()) {
+            logInfo(String.format(
+                "ACK_NOT_PROCESSED : UNIQUE_ID: %d | ACK_EXPIRED",
+                ack.getId()
+            ));
+            return;
+        }
+
+        // Remove the last hop (this vehicle)
+        List<String> checklist = ack.getChecklist();
+        checklist.removeLast(); 
+        logInfo(vehId + " | check list SIZE: " + checklist.size());
+
+        // Copy the ACK message to forward it
+        EventACK ackCopy = new EventACK(
+            broadcastRouting,
+            ack.getId(),
+            ack.getTimestamp(),
+            ack.getExpiryTimestamp(),
+            checklist
+        );
+
+        // Send the ACK message copy
+        getOs().getAdHocModule().sendV2xMessage(ackCopy);
+        logInfo(String.format(
+            "ACK SENT: EVENT_ID = %d | NEXT_HOP = %s", 
+            ackCopy.getId(), ackCopy.getNextHop()
+        ));
+    }
+
+    private void handleEventReceived(EventMessage event) {
         
         if(event.getTarget().equals(vehId)) {
             processEvent(event);
@@ -282,9 +315,24 @@ public final class VehApp extends AbstractApplication<VehicleOperatingSystem>
             "FINAL TARGET REACHED | PROCESSING EVENT : UNIQUE_ID = %d", 
             event.getId()
         ));
-        if(event instanceof AccidentEvent) {
+        if(event instanceof AccidentEvent aEvent) {
             logInfo("ACCIDENT EVENT RECEIVED: SCHEDULING EMERGENCY BRAKE");
             pendingBrake = true;
+            switch (aEvent.getSeverity()) {
+                case 0: // Minor accident
+                    accidentDuration = 15 * TIME.SECOND;
+                    break;
+                case 1: // Moderate accident
+                    accidentDuration = 30 * TIME.SECOND;
+                    break;
+                case 2: // Severe accident
+                    accidentDuration = 60 * TIME.SECOND;
+                    break;
+                default:
+                    logInfo("UNKNOWN SEVERITY LEVEL: " + aEvent.getSeverity());
+                    accidentDuration = 30 * TIME.SECOND; // Default to 30 seconds
+                    break;
+            }
         } else {
             logInfo("UNKNOWN EVENT TYPE: " + event.getSimpleClassName());
         }
@@ -329,14 +377,7 @@ public final class VehApp extends AbstractApplication<VehicleOperatingSystem>
 
         // Select next hop for forwarding
         String target = event.getTarget();
-        String nextHop = null;
-        
-        NodeRecord rec = neighborsGraph.get(target);
-        if (rec != null && rec.getDistanceFromVehicle() <= TX_RANGE_M) {
-            nextHop = target;
-        } else {
-            nextHop = selectNextHop(target);
-        }
+        String nextHop = selectNextHop(target);
 
         // If no next hop is found, do not forward the event
         if (nextHop == null) {
@@ -371,133 +412,51 @@ public final class VehApp extends AbstractApplication<VehicleOperatingSystem>
         ));
     }
 
-    private void handleAckReceived(EventACK ack) {
+    private String selectNextHop(String target) {
 
-        // If the ACK is expired, do not process it
-        if (ack.getExpiryTimestamp() < getOs().getSimulationTime()) {
-            logInfo(String.format(
-                "ACK_NOT_PROCESSED : UNIQUE_ID: %d | ACK_EXPIRED",
-                ack.getId()
-            ));
-            return;
+        // Check if the destination is reachable directly (1 hop)
+        if (neighbors.contains(target)) {
+            return target;
         }
 
-        // Remove the last hop (this vehicle)
-        List<String> checklist = ack.getChecklist();
-        checklist.removeLast(); 
-        logInfo(vehId + " | check list SIZE: " + checklist.size());
+        // Check if the destination is reachable through a neighbor (2 hops)
+        for (String neighbor : neighbors) {
+            CamMessage neighborCam = seenCams.get(neighbor);
+            if (neighborCam != null && neighborCam.getNeighbors().contains(target)) {
+                return neighbor;
+            }
+        }
 
-        // Copy the ACK message to forward it
-        EventACK ackCopy = new EventACK(
-            broadcastRouting,
-            ack.getId(),
-            ack.getTimestamp(),
-            ack.getExpiryTimestamp(),
-            checklist
-        );
-
-        // Send the ACK message copy
-        getOs().getAdHocModule().sendV2xMessage(ackCopy);
-        logInfo(String.format(
-            "ACK SENT: EVENT_ID = %d | NEXT_HOP = %s", 
-            ackCopy.getId(), ackCopy.getNextHop()
-        ));
+        // If no direct or two-hop neighbor is found, select the closest neighbor to the destination
+        return getClosestNeighbor(target);
     }
 
-    private String selectNextHop(String dst) {
-        // Find direct neighbors within transmission range
-        List<String> direct = neighborsGraph.entrySet().stream()
-            .filter(e -> e.getValue().getDistanceFromVehicle() <= TX_RANGE_M)
-            .map(Map.Entry::getKey)
-            .filter(n -> !n.equalsIgnoreCase(vehId))
-            .toList();
+    private String getClosestNeighbor(String target) {
 
-        if (direct.isEmpty()) {
-            return null;
+        CamMessage targetCam = seenCams.get(target);
+        if (targetCam == null) {
+            return null; // No CAM info available for the target
         }
+        
+        // Get the current target position
+        GeoPoint targetPosition = targetCam.getPosition();
 
-        // Prefer two-hop neighbors that can reach the destination
-        List<String> twoHop = direct.stream()
-            .filter(n -> neighborsGraph.get(n).getReachableNeighbors().contains(dst))
-            .toList();
-        if (!twoHop.isEmpty()) {
-            Optional<String> minTwoHop = twoHop.stream()
-                .min(Comparator.comparingDouble(n -> neighborsGraph.get(n).getDistanceFromVehicle()));
-            if (minTwoHop.isPresent()) {
-                return minTwoHop.get();
-            }
-        }
+        double minDistance = Double.MAX_VALUE;
+        String closestNeighbor = null;
 
-        // Select neighbor with minimum hop count
-        String bestByHops = direct.stream()
-            .min(Comparator.comparingInt(n -> hopCountRestricted(n, dst, direct)))
-            .orElse(null);
-        if (bestByHops != null && hopCountRestricted(bestByHops, dst, direct) < Integer.MAX_VALUE) {
-            return bestByHops;
-        }
-
-        // Fallback to neighbor with most connections
-        return direct.stream()
-            .max(Comparator.comparingInt(n -> neighborsGraph.get(n).getReachableNeighbors().size()))
-            .orElse(null);
-    }
-
-    private int hopCountRestricted(String start, String dst, List<String> directCandidates) {
-        // Compute shortest path to destination within allowed nodes
-        if (start.equalsIgnoreCase(dst)) {
-            return 0;
-        }
-
-        Queue<String> queue = new LinkedList<>();
-        Map<String, Integer> dist = new HashMap<>();
-        queue.offer(start);
-        dist.put(start, 0);
-
-        Set<String> allowed = new HashSet<>(directCandidates);
-        allowed.add(dst);
-
-        while (!queue.isEmpty()) {
-            String cur = queue.poll();
-            int hops = dist.get(cur);
-            if (cur.equalsIgnoreCase(dst)) {
-                return hops;
-            }
-
-            NodeRecord rec = neighborsGraph.get(cur);
-            if (rec == null) {
-                continue;
-            }
-
-            for (String nb : rec.getReachableNeighbors()) {
-                if (!allowed.contains(nb)) {
-                    continue;
-                }
-                if (dist.putIfAbsent(nb, hops + 1) == null) {
-                    queue.offer(nb);
+        // Search for the closest neighbor to the target position
+        for (String neighbor : neighbors) {
+            CamMessage neighborCam = seenCams.get(neighbor);
+            if (neighborCam != null) {
+                GeoPoint neighborPosition = neighborCam.getPosition();
+                double distance = neighborPosition.distanceTo(targetPosition);
+                if (distance <= minDistance) {
+                    minDistance = distance;
+                    closestNeighbor = neighbor;
                 }
             }
         }
-        return Integer.MAX_VALUE;
-    }
-
-    private double computeRsuDistance() {
-        return getOs().getPosition().distanceTo(STATIC_RSUS.get("rsu_0"));
-    }
-
-    private Map.Entry<String, GeoPoint> findClosestRsu(GeoPoint vehiclePosition) {
-        // Find the RSU with the minimum distance to the vehicle
-        return STATIC_RSUS.entrySet().stream()
-            .min(Comparator.comparingDouble(entry -> 
-                vehiclePosition.distanceTo(entry.getValue())))
-            .orElse(null);
-    }
-
-    private List<String> getReachableRsus(GeoPoint vehiclePosition) {
-        // Get IDs of RSUs within communication range
-        return STATIC_RSUS.entrySet().stream()
-            .filter(entry -> vehiclePosition.distanceTo(entry.getValue()) <= RSU_RANGE_M)
-            .map(Map.Entry::getKey)
-            .toList();
+        return closestNeighbor;
     }
 
     @Override public void onMessageTransmitted(V2xMessageTransmission tx) { /* No action required */ }

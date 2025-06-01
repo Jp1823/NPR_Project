@@ -8,6 +8,7 @@ import org.eclipse.mosaic.fed.application.ambassador.simulation.communication.Ce
 import org.eclipse.mosaic.fed.application.ambassador.simulation.communication.ReceivedV2xMessage;
 import org.eclipse.mosaic.interactions.communication.V2xMessageTransmission;
 import org.eclipse.mosaic.lib.enums.AdHocChannel;
+import org.eclipse.mosaic.lib.geo.GeoPoint;
 import org.eclipse.mosaic.lib.objects.v2x.MessageRouting;
 import org.eclipse.mosaic.lib.objects.v2x.V2xMessage;
 import org.eclipse.mosaic.lib.util.scheduling.Event;
@@ -15,36 +16,26 @@ import org.eclipse.mosaic.rti.DATA;
 import org.eclipse.mosaic.rti.TIME;
 
 import pt.uminho.npr.projeto.messages.*;
-import pt.uminho.npr.projeto.records.NodeRecord;
-
-import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.stream.Collectors;
 
 public final class RsuApp extends AbstractApplication<RoadSideUnitOperatingSystem>
         implements CommunicationApplication {
 
-    private static final long   CLEAN_MS        = 1000 * TIME.MILLI_SECOND;
-    private static final int    TX_POWER_DBM    = 23;
-    private static final double TX_RANGE_M      = 120.0;
-    private static final long   NEIGHBOR_TTL_MS = 1000 * TIME.MILLI_SECOND;
+    private static final long TICK_INTERVAL = 500 * TIME.MILLI_SECOND;
+    private static final long CAM_TTL       = 3 * TIME.SECOND;
 
-    private static final double W_TWO_HOP      = 50.0;
-    private static final double W_PROXIMITY    = 30.0;
-    private static final double W_CONNECTIVITY = 10.0;
-    private static final double W_STABILITY    =  5.0;
-    private static final double W_FAIRNESS     =  5.0;
+    private static final int TX_POWER_DBM  = 23;
+    private static final double TX_RANGE_M = 120.0;
 
     private MessageRouting cellRoutingToFog;
     private MessageRouting broadcastRouting;
     
-    private final Map<String, NodeRecord> neighbors = new HashMap<>();
-    private final Map<String, Integer> fairnessCount = new HashMap<>();
-    private final Set<Integer> seenCams = new HashSet<>();
+    private final Map<String, CamMessage> seenCams   = new HashMap<>();
+    private final Set<String> neighbors = new HashSet<>();
     private String rsuId;
     
     @Override
@@ -92,15 +83,36 @@ public final class RsuApp extends AbstractApplication<RoadSideUnitOperatingSyste
 
     @Override
     public void processEvent(Event e) {
-        purgeNeighbors();
+        purgeCams();
         scheduleEvent();
+    }
+
+    private void purgeCams() {
+        long now = getOs().getSimulationTime();
+        seenCams.entrySet().removeIf(e ->
+            (now - e.getValue().getTimestamp() > CAM_TTL)
+        );
+    }
+
+    private void scheduleEvent() {
+        long next = getOs().getSimulationTime() + TICK_INTERVAL;
+        getOs().getEventManager().addEvent(next, this);
     }
 
     @Override
     public void onMessageReceived(ReceivedV2xMessage in) {
         V2xMessage msg = in.getMessage();
-        
-        if (msg instanceof CamMessage cam && seenCams.add(cam.getId())) {
+
+        // If the sender is not the server, add it to the neighbors
+        String senderId = msg.getRouting().getSource().getSourceName();
+        if (!senderId.equals("server_0")) {
+            neighbors.add(senderId);
+        }
+
+        if (msg instanceof CamMessage cam && 
+            (!seenCams.containsKey(cam.getVehId()) || cam.getId() > seenCams.get(cam.getVehId()).getId())
+        ) {
+            // Process the CAM message if it is the first seen from the vehicle or if it is more recent
             handleCamReceived(cam);
 
         } else if (msg instanceof EventACK ack && ack.hasNextHop() && ack.getNextHop().equals(rsuId)) {
@@ -121,27 +133,24 @@ public final class RsuApp extends AbstractApplication<RoadSideUnitOperatingSyste
 
     private void handleCamReceived(CamMessage cam) {
 
-        String vid = cam.getVehId();
-        double d   = getOs().getPosition().distanceTo(cam.getPosition());
-        boolean reachable = d <= TX_RANGE_M;
-        List<String> reachableNeighbors = new ArrayList<>(cam.getNeighborsGraph().keySet());
-        List<String> directNeighbors = reachableNeighbors.stream()
-            .filter(id -> {
-                NodeRecord nr = cam.getNeighborsGraph().get(id);
-                return nr != null && nr.getDistanceFromVehicle() <= TX_RANGE_M;
-            })
-            .toList();
+        String camVehId = cam.getVehId();
+        seenCams.put(camVehId, cam);
 
-        NodeRecord rec = new NodeRecord(
-            d,
-            d,
-            reachable,
-            reachableNeighbors,
-            directNeighbors,
-            cam.getTimestamp()
-        );
-        neighbors.put(vid, rec);
+        double distance = getOs().getPosition().distanceTo(cam.getPosition());
+        boolean reachable = distance < TX_RANGE_M;
+        if (reachable) {
+            neighbors.add(camVehId);
+        } else {
+            neighbors.remove(camVehId);
+        }
         
+        if (cam.getHopsToLive() > 0) {
+            forwardCamMessage(cam);
+        }
+    }
+
+    private void forwardCamMessage(CamMessage cam) {
+
         // Copy the CAM message to forward it to the fog
         CamMessage camCopy = new CamMessage(
             cellRoutingToFog,
@@ -150,7 +159,7 @@ public final class RsuApp extends AbstractApplication<RoadSideUnitOperatingSyste
             cam.getTimestamp(),
             0, // Time to live is not used in this context
             cam.getPosition(),
-            cam.getNeighborsGraph()
+            cam.getNeighbors()
         );
         getOs().getCellModule().sendV2xMessage(camCopy);
     }
@@ -197,16 +206,9 @@ public final class RsuApp extends AbstractApplication<RoadSideUnitOperatingSyste
             return;
         }
 
-        // Get the target vehicle from the event
+        // Select next hop for forwarding
         String target = event.getTarget();
-    
-        // If the target vehicle is not in the neighbor list, try to select a next hop
-        String nextHop = null;
-        if (neighbors.get(target) != null) {
-            nextHop = target;
-        } else {
-            nextHop = selectNextHop(target);
-        }
+        String nextHop = selectNextHop(target);
     
         // If no next hop is found, do not forward the event
         if (nextHop == null) {
@@ -240,89 +242,52 @@ public final class RsuApp extends AbstractApplication<RoadSideUnitOperatingSyste
         ));
     }
 
-    private String selectNextHop(String dst) {
-        List<String> direct = neighbors.entrySet().stream()
-            .filter(e -> e.getValue().isReachableToRsu())
-            .map(Map.Entry::getKey)
-            .toList();
-        if (direct.isEmpty()) return null;
-    
-        Set<String> twoHop = direct.stream()
-            .filter(n -> neighbors.get(n).getReachableNeighbors().contains(dst))
-            .collect(Collectors.toSet());
-    
-        List<String> candidates = twoHop.isEmpty() ? direct : new ArrayList<>(twoHop);
+    private String selectNextHop(String target) {
+        
+        // Check if the destination is reachable directly (1 hop)
+        if (neighbors.contains(target)) {
+            return target;
+        }
 
-        double maxDegree     = candidates.stream()
-            .mapToInt(n -> neighbors.get(n).getReachableNeighbors().size())
-            .max().orElse(1);
-        int maxFairness      = fairnessCount.values().stream().mapToInt(i -> i).max().orElse(1);
-        long now             = getOs().getSimulationTime();
-
-        double maxStability  = candidates.stream()
-            .mapToDouble(n -> now - neighbors.get(n).getCreationTimestamp())
-            .max().orElse(1.0);
-    
-        String best     = null;
-        double bestScore= Double.NEGATIVE_INFINITY;
-        for (String cand : candidates) {
-            NodeRecord rec = neighbors.get(cand);
-    
-            double scoreTwoHop = twoHop.contains(cand) ? 1.0 : 0.0;
-
-            double scoreProx   = 1.0 / rec.getDistanceFromVehicle();
-
-            double scoreConn   = rec.getReachableNeighbors().size() / maxDegree;
-
-            long   age         = now - rec.getCreationTimestamp();
-            double scoreStab   = age / maxStability;
-
-            int    usedTimes   = fairnessCount.getOrDefault(cand, 0);
-            double scoreFair   = 1.0 - (usedTimes / (double) maxFairness);
-    
-            double score = W_TWO_HOP      * scoreTwoHop
-                         + W_PROXIMITY    * scoreProx
-                         + W_CONNECTIVITY * scoreConn
-                         + W_STABILITY    * scoreStab
-                         + W_FAIRNESS     * scoreFair;
-    
-            if (score > bestScore) {
-                bestScore = score;
-                best      = cand;
+        // Check if the destination is reachable through a neighbor (2 hops)
+        for (String neighbor : neighbors) {
+            CamMessage neighborCam = seenCams.get(neighbor);
+            if (neighborCam != null && neighborCam.getNeighbors().contains(target)) {
+                return neighbor;
             }
         }
-    
-        fairnessCount.merge(best, 1, Integer::sum);
-        return best;
-    }
-    
-    private void purgeNeighbors() {
-        long now = getOs().getSimulationTime();
-        neighbors.entrySet().removeIf(e ->
-            (now - e.getValue().getCreationTimestamp() > NEIGHBOR_TTL_MS)
-            || !e.getValue().isReachableToRsu()
-        );
+        
+        // If no direct or two-hop neighbor is found, select the closest neighbor to the destination
+        return getClosestNeighbor(target);
     }
 
-    private void scheduleEvent() {
-        long next = getOs().getSimulationTime() + CLEAN_MS;
-        getOs().getEventManager().addEvent(next, this);
-    }
+    private String getClosestNeighbor(String target) {
+        
+        CamMessage targetCam = seenCams.get(target);
+        if (targetCam == null) {
+            return null; // No CAM info available for the target
+        }
 
-    /*
-    private void printNeighborEntries() {
-        logInfo("NEIGHBOR_GRAPH : SIZE = " + neighbors.size());
-        neighbors.keySet().stream().sorted().forEach(key -> {
-            NodeRecord rec = neighbors.get(key);
-            logInfo("NEIGHBOR_ENTRY : VEHICLE_ID: " + key +
-                    " | DISTANCE_FROM_RSU: " + String.format("%.2f", rec.getDistanceFromVehicle()) +
-                    " | REACHABLE_TO_RSU: " + rec.isReachableToRsu() +
-                    " | REACHABLE_NEIGHBORS: " + rec.getReachableNeighbors().size() +
-                    " | DIRECT_NEIGHBORS: " + rec.getDirectNeighbors().size() +
-                    " | CREATION_TIMESTAMP: " + rec.getCreationTimestamp());
-        });
+        // Get the current target position
+        GeoPoint targetPosition = targetCam.getPosition();
+
+        double minDistance = Double.MAX_VALUE;
+        String closestNeighbor = null;
+
+        // Search for the closest neighbor to the target position
+        for (String neighbor : neighbors) {
+            CamMessage neighborCam = seenCams.get(neighbor);
+            if (neighborCam != null) {
+                GeoPoint neighborPosition = neighborCam.getPosition();
+                double distance = neighborPosition.distanceTo(targetPosition);
+                if (distance <= minDistance) {
+                    minDistance = distance;
+                    closestNeighbor = neighbor;
+                }
+            }
+        }
+        return closestNeighbor;
     }
-    */
 
     @Override public void onMessageTransmitted(V2xMessageTransmission tx) { /* No action required */ }
     @Override public void onAcknowledgementReceived(org.eclipse.mosaic.fed.application.ambassador.simulation.communication.ReceivedAcknowledgement ack) { /* No action required */ }

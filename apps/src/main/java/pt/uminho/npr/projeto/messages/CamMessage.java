@@ -2,39 +2,36 @@ package pt.uminho.npr.projeto.messages;
 
 import java.io.*;
 import java.util.*;
-import java.util.Map.Entry;
 
 import javax.annotation.Nonnull;
 import org.eclipse.mosaic.lib.geo.GeoPoint;
 import org.eclipse.mosaic.lib.objects.v2x.*;
 import org.eclipse.mosaic.lib.util.SerializationUtils;
 
-import pt.uminho.npr.projeto.records.NodeRecord;
-
 public final class CamMessage extends V2xMessage {
 
     private final String vehId;
     private final long timestamp;
-    private final int timeToLive;
+    private final int hopsToLive;
     private final GeoPoint position;
-    //private final double   heading;
-    //private final double   speed;
-    private final Map<String, NodeRecord> neighborsGraph;
+    private final Set<String> neighbors;
+    //private final double heading;
+    //private final double speed;
 
     public CamMessage(MessageRouting routing,
                         int camId,
                         String vehId,
                         long timestamp,
-                        int timeToLive,
+                        int hopsToLive,
                         GeoPoint position,
-                        Map<String, NodeRecord> neighborsGraph) {
+                        Set<String> neighbors) {
 
         super(routing, camId);
         this.vehId = vehId;
         this.timestamp = timestamp;
-        this.timeToLive = timeToLive;
+        this.hopsToLive = hopsToLive;
         this.position = position;
-        this.neighborsGraph = neighborsGraph;
+        this.neighbors = neighbors;
     }
 
     @Nonnull @Override
@@ -44,27 +41,11 @@ public final class CamMessage extends V2xMessage {
             out.writeInt(this.getId());
             out.writeUTF(vehId);
             out.writeLong(timestamp);
-            out.writeInt(timeToLive);
+            out.writeInt(hopsToLive);
             SerializationUtils.encodeGeoPoint(out, position);
-            out.writeInt(neighborsGraph.size());
-            for (Entry<String, NodeRecord> entry : neighborsGraph.entrySet()) {
-                String nodeId = entry.getKey();
-                NodeRecord nodeRecord = entry.getValue();
-                out.writeUTF(nodeId);
-                out.writeDouble(nodeRecord.getDistanceFromVehicle());
-                out.writeDouble(nodeRecord.getDistanceToClosestRsu());
-                out.writeBoolean(nodeRecord.isReachableToRsu());
-                List<String> reachable = nodeRecord.getReachableNeighbors();
-                out.writeInt(reachable.size());
-                for (String id : reachable) {
-                    out.writeUTF(id);
-                }
-                List<String> direct = nodeRecord.getDirectNeighbors();
-                out.writeInt(direct.size());
-                for (String id : direct) {
-                    out.writeUTF(id);
-                }
-                out.writeLong(nodeRecord.getCreationTimestamp());
+            out.writeInt(neighbors.size());
+            for (String neighborId : neighbors) {
+                out.writeUTF(neighborId);
             }
             return new EncodedPayload(buf.toByteArray(), buf.size());
         } catch (IOException e) {
@@ -74,9 +55,9 @@ public final class CamMessage extends V2xMessage {
 
     public String   getVehId()      { return vehId; }
     public long     getTimestamp()  { return timestamp; }
-    public int      getTimeToLive() { return timeToLive; }
+    public int      getHopsToLive() { return hopsToLive; }
     public GeoPoint getPosition()   { return position; }
-    public Map<String, NodeRecord> getNeighborsGraph() { return neighborsGraph; }
+    public Set<String> getNeighbors() { return neighbors; }
 
     @Override
     public String toString() {
@@ -84,9 +65,9 @@ public final class CamMessage extends V2xMessage {
                " | ID: " + this.getId() +
                " | VEHICLE_ID: " + vehId +
                " | TIMESTAMP: " + timestamp +
-               " | TIME_TO_LIVE: " + timeToLive +
+               " | HOPS_TO_LIVE: " + hopsToLive +
                " | POSITION: " + position +
-               " | NEIGHBOR_GRAPH_SIZE: " + neighborsGraph.size();
+               " | NEIGHBORS_SIZE: " + neighbors.size();
     }
 
     @Override
@@ -97,18 +78,18 @@ public final class CamMessage extends V2xMessage {
         return this.getId() == other.getId() &&
                this.vehId.equals(other.vehId) &&
                this.timestamp == other.timestamp &&
-               this.timeToLive == other.timeToLive &&
+               this.hopsToLive == other.hopsToLive &&
                this.position.equals(other.position) &&
-               this.neighborsGraph.equals(other.neighborsGraph);
+               this.neighbors.equals(other.neighbors);
     }
 
     @Override
     public int hashCode() {
         int result = getId() ^ (getId() >>> 32);
         result = 31 * result + (int) (timestamp ^ (timestamp >>> 32));
-        result = 31 * result + (timeToLive ^ (timeToLive >>> 32));
+        result = 31 * result + (hopsToLive ^ (hopsToLive >>> 32));
         result = 31 * result + position.hashCode();
-        result = 31 * result + neighborsGraph.hashCode();
+        result = 31 * result + neighbors.hashCode();
         return result;
     }
 }

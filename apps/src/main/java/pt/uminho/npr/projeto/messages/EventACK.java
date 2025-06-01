@@ -56,9 +56,9 @@ public final class EventACK extends V2xMessage {
     public String toString() {
         return "EVENT_ACK :" +
                " | ACK_ID: " + getId() +
-               " | CHECKLIST_SIZE: " + checklist.size() +
                " | TIMESTAMP: " + timestamp +
-               " | EXPIRY_TIMESTAMP: " + expiryTimestamp;
+               " | EXPIRY_TIMESTAMP: " + expiryTimestamp +
+               " | CHECKLIST_SIZE: " + checklist.size();
     }
 
     @Override

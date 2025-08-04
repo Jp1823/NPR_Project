@@ -2,45 +2,50 @@ package pt.uminho.npr.projeto.messages;
 
 import java.io.*;
 import java.util.*;
-
 import javax.annotation.Nonnull;
 import org.eclipse.mosaic.lib.geo.GeoPoint;
 import org.eclipse.mosaic.lib.objects.v2x.*;
 import org.eclipse.mosaic.lib.util.SerializationUtils;
 
 public final class CamMessage extends V2xMessage {
-
     private final String vehId;
     private final long timestamp;
     private final int hopsToLive;
     private final GeoPoint position;
+    private final double speed; 
+    private final double heading; 
     private final Set<String> neighbors;
 
     public CamMessage(MessageRouting routing,
-                        int camId,
-                        String vehId,
-                        long timestamp,
-                        int hopsToLive,
-                        GeoPoint position,
-                        Set<String> neighbors) {
-
+                      int camId,
+                      String vehId,
+                      long timestamp,
+                      int hopsToLive,
+                      GeoPoint position,
+                      double speed, 
+                      double heading,
+                      Set<String> neighbors) {
         super(routing, camId);
         this.vehId = vehId;
         this.timestamp = timestamp;
         this.hopsToLive = hopsToLive;
         this.position = position;
+        this.speed = speed;
+        this.heading = heading;
         this.neighbors = neighbors;
     }
 
     @Nonnull @Override
     public EncodedPayload getPayload() {
         try (ByteArrayOutputStream buf = new ByteArrayOutputStream();
-            DataOutputStream out = new DataOutputStream(buf)) {
+             DataOutputStream out = new DataOutputStream(buf)) {
             out.writeInt(this.getId());
             out.writeUTF(vehId);
             out.writeLong(timestamp);
             out.writeInt(hopsToLive);
             SerializationUtils.encodeGeoPoint(out, position);
+            out.writeDouble(speed); 
+            out.writeDouble(heading); 
             out.writeInt(neighbors.size());
             for (String neighborId : neighbors) {
                 out.writeUTF(neighborId);
@@ -51,10 +56,12 @@ public final class CamMessage extends V2xMessage {
         }
     }
 
-    public String   getVehId()      { return vehId; }
-    public long     getTimestamp()  { return timestamp; }
-    public int      getHopsToLive() { return hopsToLive; }
-    public GeoPoint getPosition()   { return position; }
+    public String getVehId() { return vehId; }
+    public long getTimestamp() { return timestamp; }
+    public int getHopsToLive() { return hopsToLive; }
+    public GeoPoint getPosition() { return position; }
+    public double getSpeed() { return speed; } 
+    public double getHeading() { return heading; } 
     public Set<String> getNeighbors() { return neighbors; }
 
     @Override
@@ -65,6 +72,8 @@ public final class CamMessage extends V2xMessage {
                " | TIMESTAMP: " + timestamp +
                " | HOPS_TO_LIVE: " + hopsToLive +
                " | POSITION: " + position +
+               " | SPEED: " + speed +
+               " | HEADING: " + heading +
                " | NEIGHBORS_SIZE: " + neighbors.size();
     }
 
@@ -78,6 +87,8 @@ public final class CamMessage extends V2xMessage {
                this.timestamp == other.timestamp &&
                this.hopsToLive == other.hopsToLive &&
                this.position.equals(other.position) &&
+               Double.compare(this.speed, other.speed) == 0 &&
+               Double.compare(this.heading, other.heading) == 0 &&
                this.neighbors.equals(other.neighbors);
     }
 
@@ -87,6 +98,8 @@ public final class CamMessage extends V2xMessage {
         result = 31 * result + (int) (timestamp ^ (timestamp >>> 32));
         result = 31 * result + (hopsToLive ^ (hopsToLive >>> 32));
         result = 31 * result + position.hashCode();
+        result = 31 * result + Double.hashCode(speed);
+        result = 31 * result + Double.hashCode(heading);
         result = 31 * result + neighbors.hashCode();
         return result;
     }

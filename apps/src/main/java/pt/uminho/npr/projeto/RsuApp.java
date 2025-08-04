@@ -159,6 +159,8 @@ public final class RsuApp extends AbstractApplication<RoadSideUnitOperatingSyste
             cam.getTimestamp(),
             0, // Time to live is not used in this context
             cam.getPosition(),
+            cam.getSpeed(),
+            cam.getHeading(),
             cam.getNeighbors()
         );
         getOs().getCellModule().sendV2xMessage(camCopy);

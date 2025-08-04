@@ -181,6 +181,8 @@ public final class VehApp extends AbstractApplication<VehicleOperatingSystem>
             now,
             CAM_HOP_TL,
             position,
+            speed,
+            heading,
             neighbors
         );
         getOs().getAdHocModule().sendV2xMessage(v2v);
@@ -253,6 +255,8 @@ public final class VehApp extends AbstractApplication<VehicleOperatingSystem>
             cam.getTimestamp(),
             cam.getHopsToLive() - 1,
             cam.getPosition(),
+            cam.getSpeed(),
+            cam.getHeading(),
             cam.getNeighbors()
         );
         getOs().getAdHocModule().sendV2xMessage(fwd);

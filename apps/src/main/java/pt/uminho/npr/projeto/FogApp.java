@@ -142,47 +142,82 @@ public final class FogApp extends AbstractApplication<ServerOperatingSystem>
     }
 
     private void maybeGenerateEvent() {
-        // Do nothing if there are no vehicles or the random chance fails
-        if (seenCams.isEmpty() || random.nextDouble() >= EVENT_PROB) {
-            return;
+    if (seenCams.size() < 2) { // Precisa de pelo menos 2 veículos para colisão
+        return;
+    }
+
+    long now = getOs().getSimulationTime();
+    List<CamMessage> vehicles = new ArrayList<>(seenCams.values());
+
+    // Analisar pares de veículos
+    for (int i = 0; i < vehicles.size(); i++) {
+        for (int j = i + 1; j < vehicles.size(); j++) {
+            CamMessage vehA = vehicles.get(i);
+            CamMessage vehB = vehicles.get(j);
+
+            // Calcular distância
+            double distance = vehA.getPosition().distanceTo(vehB.getPosition());
+            if (distance > 200) { // Ignorar veículos muito distantes
+                continue;
+            }
+
+            // Calcular velocidade relativa
+            double speedA = vehA.getSpeed();
+            double speedB = vehB.getSpeed();
+            double headingA = Math.toRadians(vehA.getHeading());
+            double headingB = Math.toRadians(vehB.getHeading());
+
+            // Componentes de velocidade
+            double vAx = speedA * Math.cos(headingA);
+            double vAy = speedA * Math.sin(headingA);
+            double vBx = speedB * Math.cos(headingB);
+            double vBy = speedB * Math.sin(headingB);
+            double relativeSpeed = Math.sqrt(Math.pow(vAx - vBx, 2) + Math.pow(vAy - vBy, 2));
+
+            // Calcular TTC (considerando direção relativa)
+            double deltaX = vehB.getPosition().getLongitude() - vehA.getPosition().getLongitude();
+            double deltaY = vehB.getPosition().getLatitude() - vehA.getPosition().getLatitude();
+            double relativeSpeedAlongPath = ((vBx - vAx) * deltaX + (vBy - vAy) * deltaY) / distance;
+            double ttc = relativeSpeedAlongPath > 0 ? distance / relativeSpeedAlongPath : Double.POSITIVE_INFINITY;
+
+            // Determinar severidade com base no TTC
+            int severity = -1;
+            if (ttc < 1.0) { // Grave: colisão iminente
+                severity = 2;
+            } else if (ttc < 2.0) { // Moderado
+                severity = 1;
+            } else if (ttc < 3.0) { // Leve
+                severity = 0;
+            }
+
+            if (severity >= 0) {
+                // Gerar evento para ambos os veículos
+                generateEventForVehicle(vehA.getVehId(), vehA.getPosition(), now, severity);
+                generateEventForVehicle(vehB.getVehId(), vehB.getPosition(), now, severity);
+            }
         }
+    }
+}
 
-        // Select a random vehicle to be the target of the event
-        String target = new ArrayList<>(seenCams.keySet())
-            .get(random.nextInt(seenCams.size()));
-        CamMessage targetInfo = seenCams.get(target);
-
-        long now = getOs().getSimulationTime();
+    private void generateEventForVehicle(String target, GeoPoint position, long now, int severity) {
         int id = eventSeq.getAndIncrement();
-        
-        // Select a random severity level
-        int severity = random.nextInt(3); // 0: minor, 1: moderate, 2: severe
+        String rsuId = getClosestRsu(position);
+        logInfo(String.format("EVENT_ROUTING : ID: %s | RSU: %s", id, rsuId));
 
-        // Select the best RSU based on the target vehicle's position
-        String rsuId = getClosestRsu(targetInfo.getPosition());
-        logInfo(String.format(
-            "EVENT_ROUTING : ID: %s | RSU: %s",
-            id, rsuId
-        ));
-
-        // Generate the event message, based on the type
         EventMessage event = new AccidentEvent(
-            newRouting(rsuId), 
-            id, 
-            now, 
-            now + EVENT_TTL, 
-            target, 
+            newRouting(rsuId),
+            id,
+            now,
+            now + EVENT_TTL,
+            target,
             new ArrayList<>(List.of(rsuId)),
             severity
         );
-        
-        // Send the event message
+
         getOs().getCellModule().sendV2xMessage(event);
         openEvents.add(id);
-        logInfo(String.format(
-            "EVENT GENERATED AND SENT : UNIQUE_ID: %d | TARGET: %s", id, target
-        ));
-    }
+        logInfo(String.format("EVENT GENERATED AND SENT : UNIQUE_ID: %d | TARGET: %s | SEVERITY: %d", id, target, severity));
+    }      
 
     private MessageRouting newRouting(String rsuId) {
     

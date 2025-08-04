@@ -195,6 +195,10 @@ public final class FogApp extends AbstractApplication<ServerOperatingSystem>
             }
 
             if (severity >= 0) {
+                logInfo(String.format(
+                    "COLLISION_RISK_DETECTED : VEH_A: %s | VEH_B: %s | TTC: %.2f | DISTANCE: %.2f | SEVERITY: %d",
+                    vehA.getVehId(), vehB.getVehId(), ttc, distance, severity
+                ));
                 // Gerar evento para ambos os veículos
                 generateEventForVehicle(vehA.getVehId(), vehA.getPosition(), now, severity);
                 generateEventForVehicle(vehB.getVehId(), vehB.getPosition(), now, severity);

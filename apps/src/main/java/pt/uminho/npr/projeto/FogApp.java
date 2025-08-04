@@ -150,6 +150,7 @@ public final class FogApp extends AbstractApplication<ServerOperatingSystem>
     List<CamMessage> vehicles = new ArrayList<>(seenCams.values());
 
     // Analisar pares de veículos
+    //Melhoria Futura: Usar algoritmo de detecção de colisão mais eficiente
     for (int i = 0; i < vehicles.size(); i++) {
         for (int j = i + 1; j < vehicles.size(); j++) {
             CamMessage vehA = vehicles.get(i);
@@ -199,9 +200,13 @@ public final class FogApp extends AbstractApplication<ServerOperatingSystem>
                     "COLLISION_RISK_DETECTED : VEH_A: %s | VEH_B: %s | TTC: %.2f | DISTANCE: %.2f | SEVERITY: %d",
                     vehA.getVehId(), vehB.getVehId(), ttc, distance, severity
                 ));
-                // Gerar evento para ambos os veículos
                 generateEventForVehicle(vehA.getVehId(), vehA.getPosition(), now, severity);
                 generateEventForVehicle(vehB.getVehId(), vehB.getPosition(), now, severity);
+            } else {
+                logInfo(String.format(
+                    "NO_RISK : VEH_A: %s | VEH_B: %s | TTC: %.2f | DISTANCE: %.2f",
+                    vehA.getVehId(), vehB.getVehId(), ttc, distance
+                ));
             }
         }
     }

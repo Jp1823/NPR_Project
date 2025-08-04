@@ -142,75 +142,92 @@ public final class FogApp extends AbstractApplication<ServerOperatingSystem>
     }
 
     private void maybeGenerateEvent() {
-    if (seenCams.size() < 2) { // Precisa de pelo menos 2 veículos para colisão
-        return;
-    }
+        if (seenCams.size() < 2) { // Precisa de pelo menos 2 veículos para colisão
+            return;
+        }
 
-    long now = getOs().getSimulationTime();
-    List<CamMessage> vehicles = new ArrayList<>(seenCams.values());
+        long now = getOs().getSimulationTime();
+        List<CamMessage> vehicles = new ArrayList<>(seenCams.values());
 
-    // Analisar pares de veículos
-    //Melhoria Futura: Usar algoritmo de detecção de colisão mais eficiente
-    for (int i = 0; i < vehicles.size(); i++) {
-        for (int j = i + 1; j < vehicles.size(); j++) {
-            CamMessage vehA = vehicles.get(i);
-            CamMessage vehB = vehicles.get(j);
+        // Analisar pares de veículos
+        // Melhoria Futura: Usar algoritmo de detecção de colisão mais eficiente
+        for (int i = 0; i < vehicles.size(); i++) {
+            for (int j = i + 1; j < vehicles.size(); j++) {
+                CamMessage vehA = vehicles.get(i);
+                CamMessage vehB = vehicles.get(j);
 
-            if (openEvents.containsValue(vehA.getVehId()) || openEvents.containsValue(vehB.getVehId())) {
-                continue;
-            }
+                if (openEvents.containsValue(vehA.getVehId()) || openEvents.containsValue(vehB.getVehId())) {
+                    continue;
+                }
 
-            // Calcular distância
-            double distance = vehA.getPosition().distanceTo(vehB.getPosition());
-            if (distance > 200) { // Ignorar veículos muito distantes
-                continue;
-            }
+                // Calcular distância
+                double distance = vehA.getPosition().distanceTo(vehB.getPosition());
+                if (distance > 100) { // Ignorar veículos muito distantes
+                    continue;
+                }
 
-            // Calcular velocidade relativa
-            double speedA = vehA.getSpeed();
-            double speedB = vehB.getSpeed();
-            double headingA = Math.toRadians(vehA.getHeading());
-            double headingB = Math.toRadians(vehB.getHeading());
+                // Calcular velocidade relativa
+                double speedA = vehA.getSpeed();
+                double speedB = vehB.getSpeed();
+                double headingA = Math.toRadians(vehA.getHeading());
+                double headingB = Math.toRadians(vehB.getHeading());
 
-            // Componentes de velocidade
-            double vAx = speedA * Math.cos(headingA);
-            double vAy = speedA * Math.sin(headingA);
-            double vBx = speedB * Math.cos(headingB);
-            double vBy = speedB * Math.sin(headingB);
-            double relativeSpeed = Math.sqrt(Math.pow(vAx - vBx, 2) + Math.pow(vAy - vBy, 2));
+                // Componentes de velocidade
+                double vAx = speedA * Math.cos(headingA);
+                double vAy = speedA * Math.sin(headingA);
+                double vBx = speedB * Math.cos(headingB);
+                double vBy = speedB * Math.sin(headingB);
+                double relativeSpeed = Math.sqrt(Math.pow(vAx - vBx, 2) + Math.pow(vAy - vBy, 2));
 
-            // Calcular TTC (considerando direção relativa)
-            double deltaX = vehB.getPosition().getLongitude() - vehA.getPosition().getLongitude();
-            double deltaY = vehB.getPosition().getLatitude() - vehA.getPosition().getLatitude();
-            double relativeSpeedAlongPath = ((vBx - vAx) * deltaX + (vBy - vAy) * deltaY) / distance;
-            double ttc = relativeSpeedAlongPath > 0 ? distance / relativeSpeedAlongPath : Double.POSITIVE_INFINITY;
+                // Calcular TTC (considerando direção relativa)
+                double deltaX = vehB.getPosition().getLongitude() - vehA.getPosition().getLongitude();
+                double deltaY = vehB.getPosition().getLatitude() - vehA.getPosition().getLatitude();
+                double relativeSpeedAlongPath = ((vBx - vAx) * deltaX + (vBy - vAy) * deltaY) / distance;
 
-            // Determinar severidade com base no TTC
-            int severity = -1;
-            if (ttc < 1.5) { // Grave: colisão iminente
-                severity = 2;
-            } else if (ttc < 2.5) { // Moderado
-                severity = 1;
-            } else if (ttc < 4.0) { // Leve
-                severity = 0;
-            }
+                // Evitar TTC inflado por velocidade relativa muito pequena
+                double ttc;
+                if (relativeSpeedAlongPath > 0.01) { // Limiar mínimo para evitar TTCs enormes
+                    ttc = distance / relativeSpeedAlongPath;
+                } else if (relativeSpeed > 0.01) { // Usar velocidade relativa total como fallback
+                    ttc = distance / relativeSpeed;
+                } else {
+                    ttc = Double.POSITIVE_INFINITY;
+                }
 
-            if (severity >= 0) {
+                // Log para depuração
                 logInfo(String.format(
-                    "COLLISION_RISK_DETECTED : VEH_A: %s | VEH_B: %s | TTC: %.2f | DISTANCE: %.2f | SEVERITY: %d",
-                    vehA.getVehId(), vehB.getVehId(), ttc, distance, severity
+                    "DEBUG: VEH_A: %s | VEH_B: %s | speedA: %.2f m/s | speedB: %.2f m/s | headingA: %.2f deg | headingB: %.2f deg | relativeSpeed: %.4f m/s | relativeSpeedAlongPath: %.4f m/s",
+                    vehA.getVehId(), vehB.getVehId(), speedA, speedB, vehA.getHeading(), vehB.getHeading(), relativeSpeed, relativeSpeedAlongPath
                 ));
-                generateEventForVehicle(vehA.getVehId(), vehA.getPosition(), now, severity);
-                generateEventForVehicle(vehB.getVehId(), vehB.getPosition(), now, severity);
-            } else {
-                logInfo(String.format(
-                    "NO_RISK : VEH_A: %s | VEH_B: %s | TTC: %.2f | DISTANCE: %.2f",
-                    vehA.getVehId(), vehB.getVehId(), ttc, distance
-                ));
+
+                // Determinar severidade com base em TTC e distância
+                int severity = -1;
+                if (distance < 5.0) { // Critério de distância fixa para travagem
+                    severity = 2; // Grave: proximidade crítica
+                } else if (ttc < 1.5) { // Grave: colisão iminente
+                    severity = 2;
+                } else if (ttc < 2.5) { // Moderado
+                    severity = 1;
+                } else if (ttc < 4.0) { // Leve
+                    severity = 0;
+                }
+
+                if (severity >= 0) {
+                    logInfo(String.format(
+                        "COLLISION_RISK_DETECTED : VEH_A: %s | VEH_B: %s | TTC: %.2f | DISTANCE: %.2f | SEVERITY: %d",
+                        vehA.getVehId(), vehB.getVehId(), ttc, distance, severity
+                    ));
+                    generateEventForVehicle(vehA.getVehId(), vehA.getPosition(), now, severity);
+                    generateEventForVehicle(vehB.getVehId(), vehB.getPosition(), now, severity);
+                } else {
+                    logInfo(String.format(
+                        "NO_RISK : VEH_A: %s | VEH_B: %s | TTC: %.2f | DISTANCE: %.2f",
+                        vehA.getVehId(), vehB.getVehId(), ttc, distance
+                    ));
+                }
             }
         }
     }
-}
 
     private void generateEventForVehicle(String target, GeoPoint position, long now, int severity) {
         int id = eventSeq.getAndIncrement();

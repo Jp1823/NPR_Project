@@ -28,7 +28,7 @@ public final class FogApp extends AbstractApplication<ServerOperatingSystem>
     private static final long   TICK_INTERVAL = 500 * TIME.MILLI_SECOND;
     private static final long   CAM_TTL       = 2 * TIME.SECOND;
     private static final long   EVENT_TTL     = 8 * TIME.SECOND;
-    private static final double EVENT_PROB    = 0.02;
+    //private static final double EVENT_PROB    = 0.02;
 
     private static final Map<String, GeoPoint> STATIC_RSUS = Map.ofEntries(
         Map.entry("rsu_0",  GeoPoint.latLon(52.451033, 13.295327, 0)),
@@ -48,7 +48,7 @@ public final class FogApp extends AbstractApplication<ServerOperatingSystem>
     );
 
     private final Map<String, CamMessage> seenCams = new HashMap<>();
-    private final List<Integer> openEvents = new ArrayList<>();
+    private final Map<Integer, String> openEvents = new HashMap<>();
     private final AtomicInteger eventSeq = new AtomicInteger();
     private final Random random = new Random();
 
@@ -77,8 +77,8 @@ public final class FogApp extends AbstractApplication<ServerOperatingSystem>
             return;
         }
         StringBuilder sb = new StringBuilder(String.format("LOST EVENTS [%d]: ", openEvents.size()));
-        for (int id : openEvents) {
-            sb.append(id).append(", ");
+        for (Entry<Integer, String> entry : openEvents.entrySet()) {
+            sb.append(entry.getKey()).append(" (").append(entry.getValue()).append("), ");
         }
         logInfo(sb.substring(0, sb.length() - 2));
     }
@@ -120,7 +120,7 @@ public final class FogApp extends AbstractApplication<ServerOperatingSystem>
         }
 
         // Remove the event from the open events list
-        openEvents.remove((Integer)ack.getId()); // Integer cast to avoid ambiguity and ensure use of remove(Object)
+        openEvents.remove(ack.getId()); 
         logInfo(String.format(
             "EVENT_CLOSED : EVENT_ID: %d",
             ack.getId()
@@ -155,6 +155,10 @@ public final class FogApp extends AbstractApplication<ServerOperatingSystem>
             CamMessage vehA = vehicles.get(i);
             CamMessage vehB = vehicles.get(j);
 
+            if (openEvents.containsValue(vehA.getVehId()) || openEvents.containsValue(vehB.getVehId())) {
+                continue;
+            }
+
             // Calcular distância
             double distance = vehA.getPosition().distanceTo(vehB.getPosition());
             if (distance > 200) { // Ignorar veículos muito distantes
@@ -182,11 +186,11 @@ public final class FogApp extends AbstractApplication<ServerOperatingSystem>
 
             // Determinar severidade com base no TTC
             int severity = -1;
-            if (ttc < 1.0) { // Grave: colisão iminente
+            if (ttc < 1.5) { // Grave: colisão iminente
                 severity = 2;
-            } else if (ttc < 2.0) { // Moderado
+            } else if (ttc < 2.5) { // Moderado
                 severity = 1;
-            } else if (ttc < 3.0) { // Leve
+            } else if (ttc < 4.0) { // Leve
                 severity = 0;
             }
 
@@ -215,9 +219,9 @@ public final class FogApp extends AbstractApplication<ServerOperatingSystem>
         );
 
         getOs().getCellModule().sendV2xMessage(event);
-        openEvents.add(id);
+        openEvents.put(id, target); 
         logInfo(String.format("EVENT GENERATED AND SENT : UNIQUE_ID: %d | TARGET: %s | SEVERITY: %d", id, target, severity));
-    }      
+    }   
 
     private MessageRouting newRouting(String rsuId) {
     

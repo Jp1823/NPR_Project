@@ -59,4 +59,3 @@ Notas:
 - Alterar infos dos carros no `mapping/mapping_config.json`
 - Atualizar a base de dados se alterar o .net.xml ou as rotas
 
-"C:\apache-maven\apache-maven-3.9.9\bin\mvn" clean package
